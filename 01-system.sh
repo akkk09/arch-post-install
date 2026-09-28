@@ -11,7 +11,7 @@ sudo pacman -Syu --noconfirm
 
 echo "==> Installing base tools"
 sudo pacman -S --needed --noconfirm \
-  base-devel git curl wget rsync unzip zip jq ripgrep fd fzf btop fastfetch \
+  base-devel git curl wget rsync unzip zip 7zip jq ripgrep fd fzf btop fastfetch \
   tree file which less man-db man-pages github-cli lazygit \
   usbutils pciutils lm_sensors smartmontools fwupd powertop \
   btrfs-progs snapper restic
