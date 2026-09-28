@@ -200,7 +200,7 @@ hl.monitor({
     output = "",
     mode = "preferred",
     position = "auto",
-    scale = 1.15,
+    scale = 1.2,
 })
 
 -- Start desktop helpers once per Hyprland session.
