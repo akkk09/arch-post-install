@@ -11,10 +11,15 @@ sudo pacman -Syu --noconfirm
 
 echo "==> Installing base tools"
 sudo pacman -S --needed --noconfirm \
-  base-devel git curl wget rsync unzip zip 7zip jq ripgrep fd fzf btop fastfetch \
+  base-devel git curl wget rsync unzip zip 7zip jq ripgrep fd fzf zoxide btop fastfetch \
   tree file which less man-db man-pages github-cli lazygit \
   usbutils pciutils lm_sensors smartmontools fwupd powertop \
   btrfs-progs snapper restic
+
+# zoxide: smarter directory jumping for interactive shells.
+if ! grep -Fqx 'eval "$(zoxide init bash)"' "$HOME/.bashrc" 2>/dev/null; then
+  printf '\neval "$(zoxide init bash)"\n' >> "$HOME/.bashrc"
+fi
 
 echo "==> Networking"
 sudo pacman -S --needed --noconfirm \
