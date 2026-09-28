@@ -4,8 +4,13 @@ set -euo pipefail
 PROFILE="/sys/firmware/acpi/platform_profile"
 CHOICES="/sys/firmware/acpi/platform_profile_choices"
 
-if [[ ! -w "$PROFILE" ]]; then
-    echo "Error: Lenovo platform profile interface is unavailable or not writable." >&2
+if [[ ! -e "$PROFILE" ]]; then
+    echo "Error: Lenovo platform profile interface is unavailable." >&2
+    exit 1
+fi
+
+if [[ ! -r "$PROFILE" ]]; then
+    echo "Error: Lenovo platform profile interface is not readable." >&2
     exit 1
 fi
 
