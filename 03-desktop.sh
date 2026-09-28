@@ -25,7 +25,7 @@ sudo pacman -S --needed --noconfirm \
 
 echo "==> Terminal and file managers"
 sudo pacman -S --needed --noconfirm \
-  foot thunar thunar-archive-plugin thunar-volman tumbler \
+  foot thunar thunar-archive-plugin thunar-volman gvfs udisks2 tumbler \
   file-roller ffmpegthumbnailer chafa yazi 7zip
 
 echo "==> PDF viewer"
