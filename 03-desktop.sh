@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Hyprland + SDRX-Dots desktop stage.
+# Hyprland desktop stage.
 # Run AFTER 02-backups.sh.
+#
+# Hyprland 0.55+ uses Lua configuration. This stage installs a small,
+# working baseline first. SDRX-Dots is cloned for later migration, but its
+# upstream installer is intentionally not run because its current config tree
+# still targets the older hyprlang layout.
 
 [[ $EUID -ne 0 ]] || { echo "Run as your normal user, not root."; exit 1; }
 command -v yay >/dev/null || { echo "Run 01-system.sh first."; exit 1; }
@@ -15,7 +20,7 @@ echo "==> Hyprland"
 sudo pacman -S --needed --noconfirm \
   hyprland hypridle hyprlock hyprpaper hyprsunset hyprpolkitagent \
   xdg-desktop-portal xdg-desktop-portal-hyprland polkit \
-  waybar swaync wl-clipboard cliphist grim slurp swappy \
+  waybar swaync wl-clipboard cliphist grim slurp swappy fuzzel \
   brightnessctl playerctl pavucontrol pamixer nwg-displays nwg-look
 
 echo "==> Terminal and file managers"
@@ -39,7 +44,7 @@ else
   echo "WARNING: signal-desktop is not available from the configured AUR sources."
 fi
 
-echo "==> SDRX-Dots"
+echo "==> SDRX-Dots source"
 SDRX_DIR="$HOME/.local/src/SDRX-Dots"
 mkdir -p "$(dirname "$SDRX_DIR")"
 
@@ -49,33 +54,170 @@ else
   git clone https://github.com/Sadrach34/SDRX-Dots.git "$SDRX_DIR"
 fi
 
-cd "$SDRX_DIR"
-
-echo
-echo "SDRX-Dots is at:"
+echo "SDRX-Dots cloned to:"
 echo "  $SDRX_DIR"
-echo
-echo "Starting its upstream installer."
-echo "Choose the options that match your hardware."
-echo "If it asks for a terminal, choose foot."
-echo "Do not replace the bootloader from this stage."
-echo
+echo "Its upstream installer is intentionally skipped for now."
 
-read -rp "Start SDRX-Dots installer? [Y/n]: " run_sdrx
-run_sdrx="\${run_sdrx:-Y}"
-
-if [[ "$run_sdrx" =~ ^[Yy]$ ]]; then
-  [[ -f install.sh ]] || { echo "SDRX-Dots install.sh was not found."; exit 1; }
-  bash install.sh
-fi
-
-echo "==> Personal Hyprland overrides"
+echo "==> Personal configuration"
 mkdir -p \
-  "$HOME/.config/hypr/conf.d" \
+  "$HOME/.config/hypr" \
   "$HOME/.config/foot" \
   "$HOME/.config/yazi" \
-  "$HOME/.local/share/applications" \
-  "$HOME/.local/bin"
+  "$HOME/.local/share/applications"
+
+# Preserve an existing Hyprland Lua config instead of silently overwriting it.
+HYPR_CONFIG="$HOME/.config/hypr/hyprland.lua"
+if [[ -f "$HYPR_CONFIG" ]] && ! grep -q "ARCH_POST_INSTALL_BASELINE" "$HYPR_CONFIG"; then
+  cp -n "$HYPR_CONFIG" "$HYPR_CONFIG.pre-arch-post-install"
+fi
+
+cat > "$HYPR_CONFIG" <<'EOF'
+-- ARCH_POST_INSTALL_BASELINE
+-- Small, boring, working baseline for Hyprland 0.55+.
+-- SDRX-Dots is kept separate until its config is migrated to Lua.
+
+local terminal = "foot"
+local file_manager = "thunar"
+local launcher = "fuzzel"
+
+hl.config({
+    general = {
+        gaps_in = 5,
+        gaps_out = 10,
+        border_size = 2,
+        layout = "dwindle",
+    },
+
+    decoration = {
+        rounding = 8,
+        shadow = {
+            enabled = true,
+            range = 4,
+            render_power = 3,
+        },
+        blur = {
+            enabled = true,
+            size = 5,
+            passes = 2,
+        },
+    },
+
+    animations = {
+        enabled = true,
+    },
+
+    input = {
+        kb_layout = "us",
+        follow_mouse = 1,
+        sensitivity = 0,
+    },
+
+    dwindle = {
+        pseudotile = true,
+        preserve_split = true,
+    },
+
+    misc = {
+        disable_hyprland_logo = true,
+        disable_splash_render = true,
+    },
+})
+
+-- Start desktop helpers once per Hyprland session.
+hl.on("hyprland.start", function()
+    hl.exec_cmd("waybar")
+    hl.exec_cmd("swaync")
+    hl.exec_cmd("hyprsunset")
+    hl.exec_cmd("wl-paste --type text --watch cliphist store")
+    hl.exec_cmd("wl-paste --type image --watch cliphist store")
+end)
+
+-- Applications.
+hl.bind("SUPER + RETURN", hl.dsp.exec_cmd(terminal), {
+    description = "Open terminal",
+})
+hl.bind("SUPER + E", hl.dsp.exec_cmd(file_manager), {
+    description = "Open file manager",
+})
+hl.bind("SUPER + SHIFT + E", hl.dsp.exec_cmd(terminal .. " -e yazi"), {
+    description = "Open Yazi",
+})
+hl.bind("SUPER + D", hl.dsp.exec_cmd(launcher), {
+    description = "Open application launcher",
+})
+
+-- Window management.
+hl.bind("SUPER + Q", hl.dsp.window.close(), {
+    description = "Close active window",
+})
+hl.bind("SUPER + F", hl.dsp.window.fullscreen({
+    mode = "maximized",
+    action = "toggle",
+}), {
+    description = "Toggle fullscreen",
+})
+hl.bind("SUPER + SHIFT + F", hl.dsp.window.float({
+    action = "toggle",
+}), {
+    description = "Toggle floating",
+})
+hl.bind("SUPER + M", hl.dsp.exit(), {
+    description = "Exit Hyprland",
+})
+
+-- Focus.
+hl.bind("SUPER + LEFT", hl.dsp.focus({ direction = "l" }))
+hl.bind("SUPER + RIGHT", hl.dsp.focus({ direction = "r" }))
+hl.bind("SUPER + UP", hl.dsp.focus({ direction = "u" }))
+hl.bind("SUPER + DOWN", hl.dsp.focus({ direction = "d" }))
+
+-- Move windows.
+hl.bind("SUPER + SHIFT + LEFT", hl.dsp.window.move({ direction = "l" }))
+hl.bind("SUPER + SHIFT + RIGHT", hl.dsp.window.move({ direction = "r" }))
+hl.bind("SUPER + SHIFT + UP", hl.dsp.window.move({ direction = "u" }))
+hl.bind("SUPER + SHIFT + DOWN", hl.dsp.window.move({ direction = "d" }))
+
+-- Workspaces.
+for i = 1, 9 do
+    hl.bind("SUPER + " .. i, hl.dsp.focus({ workspace = i }))
+    hl.bind("SUPER + SHIFT + " .. i, hl.dsp.window.move({
+        workspace = i,
+    }))
+end
+
+-- Audio.
+hl.bind("XF86AudioMute", hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"), {
+    locked = true,
+})
+hl.bind("XF86AudioLowerVolume", hl.dsp.exec_cmd("wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%-"), {
+    locked = true,
+})
+hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd("wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+"), {
+    locked = true,
+})
+hl.bind("XF86AudioPlay", hl.dsp.exec_cmd("playerctl play-pause"), {
+    locked = true,
+})
+hl.bind("XF86AudioPrev", hl.dsp.exec_cmd("playerctl previous"), {
+    locked = true,
+})
+hl.bind("XF86AudioNext", hl.dsp.exec_cmd("playerctl next"), {
+    locked = true,
+})
+
+-- Brightness.
+hl.bind("XF86MonBrightnessUp", hl.dsp.exec_cmd("brightnessctl set +5%"), {
+    locked = true,
+})
+hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("brightnessctl set 5%-"), {
+    locked = true,
+})
+
+-- Screenshots.
+hl.bind("SUPER + SHIFT + S", hl.dsp.exec_cmd("sh -c 'grim -g \"$(slurp)\" - | wl-copy'"), {
+    description = "Screenshot region",
+})
+EOF
 
 cat > "$HOME/.config/foot/foot.ini" <<'EOF'
 [main]
@@ -115,19 +257,6 @@ profile {
     temperature = 4200
     gamma = 0.90
 }
-EOF
-
-cat > "$HOME/.config/hypr/conf.d/90-personal.conf" <<'EOF'
-# Personal overrides. Keep SDRX upstream files intact.
-
-exec-once = hyprsunset
-
-bindel = ,XF86MonBrightnessUp, exec, brightnessctl set +5%
-bindel = ,XF86MonBrightnessDown, exec, brightnessctl set 5%-
-
-bind = SUPER, RETURN, exec, foot
-bind = SUPER, E, exec, thunar
-bind = SUPER SHIFT, E, exec, foot -e yazi
 EOF
 
 cat > "$HOME/.config/yazi/yazi.toml" <<'EOF'
@@ -181,10 +310,19 @@ done
 
 cd "$DOTS"
 git add .
-git diff --cached --quiet || git commit -m "Add desktop configuration"
+if ! git diff --cached --quiet; then
+  if git config user.name >/dev/null 2>&1 && git config user.email >/dev/null 2>&1; then
+    git commit -m "Add desktop configuration"
+  else
+    echo "WARNING: Git identity is not configured for ~/.dotfiles; leaving the changes staged."
+    echo 'Configure it later with:'
+    echo '  git -C ~/.dotfiles config user.name "Your Name"'
+    echo '  git -C ~/.dotfiles config user.email "you@example.com"'
+  fi
+fi
 
 echo "==> Verification"
-for cmd in hyprland foot thunar yazi zathura telegram-desktop brave hyprsunset brightnessctl git; do
+for cmd in hyprland foot thunar yazi zathura telegram-desktop brave hyprsunset brightnessctl fuzzel git; do
   if command -v "$cmd" >/dev/null 2>&1; then
     printf '[OK] %s\n' "$cmd"
   else
@@ -201,11 +339,13 @@ sudo snapper -c home create --description "desktop installation complete"
 echo
 echo "==> Desktop stage complete."
 echo
-echo "Config:"
-echo "  ~/.config/hypr/"
+echo "Hyprland baseline:"
+echo "  ~/.config/hypr/hyprland.lua"
 echo "  ~/.config/hypr/hyprsunset.conf"
-echo "  ~/.config/hypr/conf.d/90-personal.conf"
 echo "  ~/.config/foot/foot.ini"
 echo "  ~/.config/yazi/yazi.toml"
+echo
+echo "SDRX-Dots source:"
+echo "  $SDRX_DIR"
 echo
 echo "Reboot before judging the final desktop behavior."
