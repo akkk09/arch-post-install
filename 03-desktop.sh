@@ -378,6 +378,14 @@ case "${1:-}" in
       notify-send -a "Desktop Controls" -u low -h string:x-canonical-private-synchronous:desktop-volume "Volume" "${value}%"
     fi
     ;;
+  mic)
+    line="$(wpctl get-volume @DEFAULT_AUDIO_SOURCE@)"
+    if grep -q '\[MUTED\]' <<< "$line"; then
+      notify-send -a "Desktop Controls" -u low -h string:x-canonical-private-synchronous:desktop-mic "Microphone" "Muted"
+    else
+      notify-send -a "Desktop Controls" -u low -h string:x-canonical-private-synchronous:desktop-mic "Microphone" "On"
+    fi
+    ;;
   brightness)
     current="$(brightnessctl get)"
     maximum="$(brightnessctl max)"
@@ -393,13 +401,16 @@ EOF
 chmod +x "$HOME/.local/bin/desktop-notify"
 
 -- Audio.
-hl.bind("XF86AudioMute", hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle && desktop-notify volume"), {
+hl.bind("F1", hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle && desktop-notify volume"), {
     locked = true,
 })
-hl.bind("XF86AudioLowerVolume", hl.dsp.exec_cmd("wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%- && desktop-notify volume"), {
+hl.bind("F2", hl.dsp.exec_cmd("wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%- && desktop-notify volume"), {
     locked = true,
 })
-hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd("wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+ && desktop-notify volume"), {
+hl.bind("F3", hl.dsp.exec_cmd("wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+ && desktop-notify volume"), {
+    locked = true,
+})
+hl.bind("F4", hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle && desktop-notify mic"), {
     locked = true,
 })
 hl.bind("XF86AudioPlay", hl.dsp.exec_cmd("playerctl play-pause"), {
@@ -413,10 +424,10 @@ hl.bind("XF86AudioNext", hl.dsp.exec_cmd("playerctl next"), {
 })
 
 -- Brightness.
-hl.bind("XF86MonBrightnessUp", hl.dsp.exec_cmd("brightnessctl set +5% && desktop-notify brightness"), {
+hl.bind("F6", hl.dsp.exec_cmd("brightnessctl set +5% && desktop-notify brightness"), {
     locked = true,
 })
-hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("brightnessctl set 5%- && desktop-notify brightness"), {
+hl.bind("F5", hl.dsp.exec_cmd("brightnessctl set 5%- && desktop-notify brightness"), {
     locked = true,
 })
 
