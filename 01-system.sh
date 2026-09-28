@@ -39,6 +39,16 @@ if pacman -Q power-profiles-daemon >/dev/null 2>&1; then
 fi
 
 sudo systemctl enable --now tlp.service
+
+# Keep the laptop on the balanced platform profile by default.
+sudo mkdir -p /etc/tlp.d
+sudo tee /etc/tlp.d/01-arch-post-install.conf >/dev/null <<'EOF'
+PLATFORM_PROFILE_ON_AC=balanced
+PLATFORM_PROFILE_ON_BAT=balanced
+PLATFORM_PROFILE_ON_SAV=low-power
+EOF
+sudo tlp start
+
 sudo systemctl enable --now fwupd.service 2>/dev/null || true
 
 echo "==> zram"
