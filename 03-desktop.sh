@@ -262,17 +262,74 @@ hl.bind("SUPER + M", hl.dsp.exit(), {
     description = "Exit Hyprland",
 })
 
--- Focus.
-hl.bind("SUPER + LEFT", hl.dsp.focus({ direction = "l" }))
-hl.bind("SUPER + RIGHT", hl.dsp.focus({ direction = "r" }))
-hl.bind("SUPER + UP", hl.dsp.focus({ direction = "u" }))
-hl.bind("SUPER + DOWN", hl.dsp.focus({ direction = "d" }))
+-- Vim-style focus: h/j/k/l = left/down/up/right.
+for key, direction in pairs({
+    h = "l",
+    j = "d",
+    k = "u",
+    l = "r",
+}) do
+    hl.bind("SUPER + " .. key, hl.dsp.focus({ direction = direction }), {
+        description = "Focus " .. direction,
+    })
+end
 
--- Move windows.
-hl.bind("SUPER + SHIFT + LEFT", hl.dsp.window.move({ direction = "l" }))
-hl.bind("SUPER + SHIFT + RIGHT", hl.dsp.window.move({ direction = "r" }))
-hl.bind("SUPER + SHIFT + UP", hl.dsp.window.move({ direction = "u" }))
-hl.bind("SUPER + SHIFT + DOWN", hl.dsp.window.move({ direction = "d" }))
+-- Vim-style window movement: Super+Shift+h/j/k/l.
+for key, direction in pairs({
+    h = "l",
+    j = "d",
+    k = "u",
+    l = "r",
+}) do
+    hl.bind("SUPER + SHIFT + " .. key, hl.dsp.window.move({ direction = direction }), {
+        description = "Move window " .. direction,
+    })
+end
+
+-- Resize mode: Super+R, then h/j/k/l. Escape exits the mode.
+hl.bind("SUPER + R", hl.dsp.submap("resize"), {
+    description = "Enter window resize mode",
+})
+hl.define_submap("resize", function()
+    hl.bind("h", hl.resize({ x = -10, y = 0, relative = true }), { repeating = true })
+    hl.bind("j", hl.resize({ x = 0, y = 10, relative = true }), { repeating = true })
+    hl.bind("k", hl.resize({ x = 0, y = -10, relative = true }), { repeating = true })
+    hl.bind("l", hl.resize({ x = 10, y = 0, relative = true }), { repeating = true })
+    hl.bind("escape", hl.dsp.submap("reset"), {
+        description = "Exit resize mode",
+    })
+end)
+
+-- Group mode: Super+G, then use Vim keys.
+hl.bind("SUPER + G", hl.dsp.submap("group_management"), {
+    description = "Enter window group mode",
+})
+
+local function group_map(key, action, description)
+    hl.bind(key, function()
+        hl.dispatch(action)
+        hl.dispatch(hl.dsp.submap("reset"))
+    end, {
+        description = description,
+    })
+end
+
+hl.define_submap("group_management", function()
+    group_map("g", hl.dsp.group.toggle(), "Toggle window group")
+    group_map("h", hl.dsp.window.move({ into_group = "l" }), "Group with window on the left")
+    group_map("j", hl.dsp.window.move({ into_group = "d" }), "Group with window below")
+    group_map("k", hl.dsp.window.move({ into_group = "u" }), "Group with window above")
+    group_map("l", hl.dsp.window.move({ into_group = "r" }), "Group with window on the right")
+    group_map("e", hl.dsp.window.move({ out_of_group = true }), "Remove window from group")
+    group_map("n", hl.dsp.group.next(), "Next window in group")
+    group_map("p", hl.dsp.group.prev(), "Previous window in group")
+    group_map("f", hl.dsp.group.move_window(), "Move window forward in group")
+    group_map("b", hl.dsp.group.move_window({ forward = false }), "Move window backward in group")
+    group_map("t", hl.dsp.group.lock_active(), "Toggle group lock")
+    hl.bind("escape", hl.dsp.submap("reset"), {
+        description = "Exit group mode",
+    })
+end)
 
 -- Workspaces.
 for i = 1, 9 do
