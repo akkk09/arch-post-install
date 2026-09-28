@@ -233,6 +233,11 @@ hl.bind("SUPER + V", hl.dsp.exec_cmd("sh -c 'cliphist list | fuzzel --dmenu --pr
     description = "Open clipboard history",
 })
 
+-- Commandlets.
+hl.bind("SUPER + BACKSLASH", hl.dsp.exec_cmd("sh -c 'printf \"%s\\n\" rename-camel arch-post-install-update pdf-search | fuzzel --dmenu --prompt=\"Commandlet ❯ \" | xargs -r -n1 sh -c'"), {
+    description = "Open commandlet menu",
+})
+
 -- Notifications.
 hl.bind("SUPER + N", hl.dsp.exec_cmd("swaync-client -t"), {
     description = "Toggle notifications",
@@ -460,6 +465,9 @@ EOF
 
 echo "==> PDF search command"
 install -Dm755 "$SCRIPT_DIR/bin/pdf-search" "$HOME/.local/bin/pdf-search"
+echo "==> Commandlets"
+install -Dm755 "$SCRIPT_DIR/bin/rename-camel" "$HOME/.local/bin/rename-camel"
+install -Dm755 "$SCRIPT_DIR/bin/arch-post-install-update" "$HOME/.local/bin/arch-post-install-update"
 
 echo "==> Notion launchers"
 cat > "$HOME/.local/share/applications/notion.desktop" <<'EOF'
