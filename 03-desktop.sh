@@ -142,6 +142,46 @@ EOF
 
 # Preserve an existing Hyprland Lua config instead of silently overwriting it.
 HYPR_CONFIG="$HOME/.config/hypr/hyprland.lua"
+
+# Small OSD helper. swaync is the notification daemon; this script only
+# reads the value after the change and sends the resulting state.
+cat > "$HOME/.local/bin/desktop-notify" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+case "${1:-}" in
+  volume)
+    line="$(wpctl get-volume @DEFAULT_AUDIO_SINK@)"
+    value="$(printf '%s\n' "$line" | awk '{printf "%d", $2 * 100 + 0.5}')"
+    if grep -q '\[MUTED\]' <<< "$line"; then
+      notify-send -a "Desktop Controls" -u low -h string:x-canonical-private-synchronous:desktop-volume "Volume" "Muted"
+    else
+      notify-send -a "Desktop Controls" -u low -h string:x-canonical-private-synchronous:desktop-volume "Volume" "${value}%"
+    fi
+    ;;
+  mic)
+    line="$(wpctl get-volume @DEFAULT_AUDIO_SOURCE@)"
+    if grep -q '\[MUTED\]' <<< "$line"; then
+      notify-send -a "Desktop Controls" -u low -h string:x-canonical-private-synchronous:desktop-mic "Microphone" "Muted"
+    else
+      notify-send -a "Desktop Controls" -u low -h string:x-canonical-private-synchronous:desktop-mic "Microphone" "On"
+    fi
+    ;;
+  brightness)
+    current="$(brightnessctl get)"
+    maximum="$(brightnessctl max)"
+    value=$(( (current * 100 + maximum / 2) / maximum ))
+    notify-send -a "Desktop Controls" -u low -h string:x-canonical-private-synchronous:desktop-brightness "Brightness" "${value}%"
+    ;;
+  *)
+    echo "Usage: desktop-notify {volume|brightness}" >&2
+    exit 2
+    ;;
+esac
+EOF
+chmod +x "$HOME/.local/bin/desktop-notify"
+
+
 if [[ -f "$HYPR_CONFIG" ]] && ! grep -q "ARCH_POST_INSTALL_BASELINE" "$HYPR_CONFIG"; then
   cp -n "$HYPR_CONFIG" "$HYPR_CONFIG.pre-arch-post-install"
 fi
@@ -361,44 +401,6 @@ for i = 1, 9 do
         workspace = i,
     }))
 end
-
-# Small OSD helper. swaync is the notification daemon; this script only
-# reads the value after the change and sends the resulting state.
-cat > "$HOME/.local/bin/desktop-notify" <<'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
-
-case "${1:-}" in
-  volume)
-    line="$(wpctl get-volume @DEFAULT_AUDIO_SINK@)"
-    value="$(printf '%s\n' "$line" | awk '{printf "%d", $2 * 100 + 0.5}')"
-    if grep -q '\[MUTED\]' <<< "$line"; then
-      notify-send -a "Desktop Controls" -u low -h string:x-canonical-private-synchronous:desktop-volume "Volume" "Muted"
-    else
-      notify-send -a "Desktop Controls" -u low -h string:x-canonical-private-synchronous:desktop-volume "Volume" "${value}%"
-    fi
-    ;;
-  mic)
-    line="$(wpctl get-volume @DEFAULT_AUDIO_SOURCE@)"
-    if grep -q '\[MUTED\]' <<< "$line"; then
-      notify-send -a "Desktop Controls" -u low -h string:x-canonical-private-synchronous:desktop-mic "Microphone" "Muted"
-    else
-      notify-send -a "Desktop Controls" -u low -h string:x-canonical-private-synchronous:desktop-mic "Microphone" "On"
-    fi
-    ;;
-  brightness)
-    current="$(brightnessctl get)"
-    maximum="$(brightnessctl max)"
-    value=$(( (current * 100 + maximum / 2) / maximum ))
-    notify-send -a "Desktop Controls" -u low -h string:x-canonical-private-synchronous:desktop-brightness "Brightness" "${value}%"
-    ;;
-  *)
-    echo "Usage: desktop-notify {volume|brightness}" >&2
-    exit 2
-    ;;
-esac
-EOF
-chmod +x "$HOME/.local/bin/desktop-notify"
 
 -- Audio.
 hl.bind("F1", hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle && desktop-notify volume"), {
