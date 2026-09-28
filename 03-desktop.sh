@@ -466,8 +466,88 @@ EOF
 echo "==> PDF search command"
 install -Dm755 "$SCRIPT_DIR/bin/pdf-search" "$HOME/.local/bin/pdf-search"
 echo "==> Commandlets"
-install -Dm755 "$SCRIPT_DIR/bin/rename-camel" "$HOME/.local/bin/rename-camel"
-install -Dm755 "$SCRIPT_DIR/bin/arch-post-install-update" "$HOME/.local/bin/arch-post-install-update"
+install -d "$HOME/.local/bin"
+
+cat > "$HOME/.local/bin/rename-camel" <<'EOF'
+#!/usr/bin/env python3
+import os
+import re
+import sys
+
+root = os.getcwd()
+apply = len(sys.argv) == 2 and sys.argv[1] == "--apply"
+
+if len(sys.argv) > 1 and not apply:
+    print("Usage: rename-camel [--apply]", file=sys.stderr)
+    raise SystemExit(2)
+
+def to_camel(name):
+    if name.startswith(".") and name.count(".") == 1:
+        return name
+    stem, ext = os.path.splitext(name)
+    words = [w for w in re.split(r"[ _-]+", stem.strip()) if w]
+    if not words:
+        return name
+    result = words[0].lower()
+    result += "".join(w[:1].upper() + w[1:].lower() for w in words[1:])
+    return result + ext
+
+changes = []
+for directory, dirnames, filenames in os.walk(root, topdown=False):
+    dirnames[:] = [d for d in dirnames if d != ".git"]
+    for name in filenames + dirnames:
+        old = os.path.join(directory, name)
+        if os.path.basename(directory) == ".git":
+            continue
+        new_name = to_camel(name)
+        if new_name != name:
+            changes.append((old, os.path.join(directory, new_name)))
+
+if not changes:
+    print(f"No names need changing under: {root}")
+    raise SystemExit(0)
+
+print("Changes:")
+for old, new in changes:
+    print(f"  {old} -> {new}")
+
+if not apply:
+    print("\nPreview only. Run 'rename-camel --apply' to apply these changes.")
+    raise SystemExit(0)
+
+for old, new in changes:
+    if os.path.exists(new):
+        print(f"ERROR: target already exists: {new}", file=sys.stderr)
+        raise SystemExit(1)
+    os.rename(old, new)
+
+print("Rename complete.")
+EOF
+chmod +x "$HOME/.local/bin/rename-camel"
+
+cat > "$HOME/.local/bin/arch-post-install-update" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO="$HOME/arch-post-install"
+cd "$REPO"
+
+echo "==> Stashing local changes"
+git stash push -u -m "arch-post-install pre-pull"
+
+echo "==> Pulling latest changes"
+git pull --ff-only
+
+echo "==> Restoring stashed changes"
+git stash pop || true
+
+echo "==> Making shell scripts executable"
+chmod +x ./*.sh
+
+echo "==> Done"
+git status --short
+EOF
+chmod +x "$HOME/.local/bin/arch-post-install-update"
 
 echo "==> Notion launchers"
 cat > "$HOME/.local/share/applications/notion.desktop" <<'EOF'
