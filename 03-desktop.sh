@@ -229,7 +229,7 @@ hl.bind("SUPER + D", hl.dsp.exec_cmd(launcher), {
 
 -- Clipboard history.
 -- cliphist stores both text and image clipboard entries; fuzzel selects one.
-hl.bind("SUPER + V", hl.dsp.exec_cmd("sh -c 'cliphist list | fuzzel --dmenu --prompt="Clipboard ❯ " | cliphist decode | wl-copy'"), {
+hl.bind("SUPER + V", hl.dsp.exec_cmd("sh -c 'cliphist list | fuzzel --dmenu --prompt=\"Clipboard ❯ \" | cliphist decode | wl-copy'"), {
     description = "Open clipboard history",
 })
 
