@@ -457,6 +457,31 @@ max_width = 1200
 max_height = 800
 EOF
 
+echo "==> PDF search command"
+mkdir -p "$HOME/.local/bin"
+cat > "$HOME/.local/bin/pdf-search" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Search recursively for PDFs below the current directory and open the
+# selected file in Zathura. Use this command from the directory you want to scan.
+ROOT="$PWD"
+
+mapfile -t pdfs < <(fd --type f --extension pdf --hidden --exclude .git . "$ROOT" | sort -f)
+
+if (\${#pdfs[@]} == 0); then
+    echo "No PDF files found under: $ROOT" >&2
+    exit 0
+fi
+
+selected="$(printf '%s\n' "\${pdfs[@]}" | fuzzel --dmenu --prompt="PDF ❯ " || true)"
+
+if [[ -n "$selected" ]]; then
+    zathura "$selected" >/dev/null 2>&1 &
+fi
+EOF
+chmod +x "$HOME/.local/bin/pdf-search"
+
 echo "==> Notion launchers"
 cat > "$HOME/.local/share/applications/notion.desktop" <<'EOF'
 [Desktop Entry]
