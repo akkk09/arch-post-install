@@ -478,6 +478,7 @@ cat > "$HOME/.config/waybar/config.jsonc" <<'EOF'
         "clock"
     ],
     "modules-right": [
+        "battery",
         "hyprland/submap",
         "tray"
     ],
@@ -496,6 +497,30 @@ cat > "$HOME/.config/waybar/config.jsonc" <<'EOF'
     "clock": {
         "format": "{:%a %d %b  %H:%M}",
         "tooltip-format": "<big>{:%A, %d %B %Y}</big>\\n<tt>{calendar}</tt>"
+    },
+
+    "battery": {
+        "format": "{capacity}% {icon}",
+        "format-charging": "{capacity}% 󰂄",
+        "format-full": "{capacity}% 󰁹",
+        "format-icons": [
+            "󰂎",
+            "󰁺",
+            "󰁻",
+            "󰁼",
+            "󰁽",
+            "󰁾",
+            "󰁿",
+            "󰂀",
+            "󰂁",
+            "󰂂",
+            "󰁹"
+        ],
+        "states": {
+            "warning": 30,
+            "critical": 15
+        },
+        "tooltip-format": "{capacity}%\n{timeTo}"
     },
 
     "tray": {
@@ -534,8 +559,13 @@ window#waybar {
 }
 
 #clock,
+#battery,
 #tray,
 #submap {
+    padding: 0 8px;
+}
+
+#battery {
     padding: 0 8px;
 }
 
