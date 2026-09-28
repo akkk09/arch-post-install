@@ -64,6 +64,7 @@ mkdir -p \
   "$HOME/.config/foot" \
   "$HOME/.config/yazi" \
   "$HOME/.config/waybar" \
+  "$HOME/.config/fuzzel" \
   "$HOME/.config/gtk-3.0" \
   "$HOME/.config/gtk-4.0" \
   "$HOME/.config/qt5ct" \
@@ -301,6 +302,32 @@ hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("brightnessctl set 5%-"), {
 hl.bind("SUPER + SHIFT + S", hl.dsp.exec_cmd("sh -c 'grim -g \"$(slurp)\" - | wl-copy'"), {
     description = "Screenshot region",
 })
+EOF
+
+cat > "$HOME/.config/fuzzel/fuzzel.ini" <<'EOF'
+[main]
+font=JetBrainsMono Nerd Font:size=11
+terminal=foot
+prompt=❯
+icons-enabled=yes
+lines=12
+width=45
+horizontal-pad=16
+vertical-pad=10
+inner-pad=6
+layer=overlay
+
+[colors]
+background=141414ee
+text=eeeeeeff
+match=ffffffFF
+selection=303030ff
+selection-text=ffffffff
+border=303030ff
+
+[border]
+width=0
+radius=6
 EOF
 
 cat > "$HOME/.config/waybar/config.jsonc" <<'EOF'
