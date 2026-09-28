@@ -412,6 +412,7 @@ cat > "$HOME/.config/waybar/config.jsonc" <<'EOF'
         "clock"
     ],
     "modules-right": [
+        "custom/hypr-mode",
         "tray"
     ],
 
@@ -434,6 +435,13 @@ cat > "$HOME/.config/waybar/config.jsonc" <<'EOF'
     "tray": {
         "icon-size": 16,
         "spacing": 8
+    },
+
+    "custom/hypr-mode": {
+        "exec": "sh -c 'mode=$(hyprctl submap 2>/dev/null); case \"$mode\" in resize) printf \"{\\\"text\\\":\\\"RESIZE\\\",\\\"class\\\":\\\"resize\\\"}\\n\" ;; group_management) printf \"{\\\"text\\\":\\\"GROUP\\\",\\\"class\\\":\\\"group\\\"}\\n\" ;; *) printf \"{\\\"text\\\":\\\"\\\"}\\n\" ;; esac'",
+        "return-type": "json",
+        "interval": 0.2,
+        "tooltip": false
     }
 }
 EOF
@@ -460,8 +468,21 @@ window#waybar {
 }
 
 #clock,
-#tray {
+#tray,
+#custom-hypr-mode {
     padding: 0 8px;
+}
+
+#custom-hypr-mode {
+    font-weight: bold;
+}
+
+#custom-hypr-mode.resize {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+#custom-hypr-mode.group {
+    background: rgba(255, 255, 255, 0.12);
 }
 EOF
 
