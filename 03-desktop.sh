@@ -90,21 +90,17 @@ hl.config({
     },
 
     decoration = {
-        rounding = 8,
+        rounding = 6,
         shadow = {
-            enabled = true,
-            range = 4,
-            render_power = 3,
+            enabled = false,
         },
         blur = {
-            enabled = true,
-            size = 5,
-            passes = 2,
+            enabled = false,
         },
     },
 
     animations = {
-        enabled = true,
+        enabled = false,
     },
 
     input = {
@@ -114,14 +110,21 @@ hl.config({
     },
 
     dwindle = {
-        pseudotile = true,
         preserve_split = true,
     },
 
     misc = {
         disable_hyprland_logo = true,
-        disable_splash_render = true,
+        disable_splash_rendering = true,
     },
+})
+
+-- Use integer 1x scaling on every monitor.
+hl.monitor({
+    output = "",
+    mode = "preferred",
+    position = "auto",
+    scale = 1,
 })
 
 -- Start desktop helpers once per Hyprland session.
