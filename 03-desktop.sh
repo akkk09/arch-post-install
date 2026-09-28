@@ -22,7 +22,7 @@ sudo pacman -S --needed --noconfirm \
   hyprland hypridle hyprlock hyprpaper hyprsunset hyprpolkitagent \
   xdg-desktop-portal xdg-desktop-portal-hyprland xdg-desktop-portal-gtk polkit \
   waybar swaync wl-clipboard cliphist grim slurp swappy fuzzel \
-  brightnessctl playerctl pavucontrol pamixer nwg-displays nwg-look
+  brightnessctl playerctl pavucontrol pamixer libnotify nwg-displays nwg-look
 
 echo "==> Terminal and file managers"
 sudo pacman -S --needed --noconfirm \
@@ -362,14 +362,44 @@ for i = 1, 9 do
     }))
 end
 
+# Small OSD helper. swaync is the notification daemon; this script only
+# reads the value after the change and sends the resulting state.
+cat > "$HOME/.local/bin/desktop-notify" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+case "${1:-}" in
+  volume)
+    line="$(wpctl get-volume @DEFAULT_AUDIO_SINK@)"
+    value="$(printf '%s\n' "$line" | awk '{printf "%d", $2 * 100 + 0.5}')"
+    if grep -q '\[MUTED\]' <<< "$line"; then
+      notify-send -a "Desktop Controls" -u low -h string:x-canonical-private-synchronous:desktop-volume "Volume" "Muted"
+    else
+      notify-send -a "Desktop Controls" -u low -h string:x-canonical-private-synchronous:desktop-volume "Volume" "${value}%"
+    fi
+    ;;
+  brightness)
+    current="$(brightnessctl get)"
+    maximum="$(brightnessctl max)"
+    value=$(( (current * 100 + maximum / 2) / maximum ))
+    notify-send -a "Desktop Controls" -u low -h string:x-canonical-private-synchronous:desktop-brightness "Brightness" "${value}%"
+    ;;
+  *)
+    echo "Usage: desktop-notify {volume|brightness}" >&2
+    exit 2
+    ;;
+esac
+EOF
+chmod +x "$HOME/.local/bin/desktop-notify"
+
 -- Audio.
-hl.bind("XF86AudioMute", hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"), {
+hl.bind("XF86AudioMute", hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle && desktop-notify volume"), {
     locked = true,
 })
-hl.bind("XF86AudioLowerVolume", hl.dsp.exec_cmd("wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%-"), {
+hl.bind("XF86AudioLowerVolume", hl.dsp.exec_cmd("wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%- && desktop-notify volume"), {
     locked = true,
 })
-hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd("wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+"), {
+hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd("wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+ && desktop-notify volume"), {
     locked = true,
 })
 hl.bind("XF86AudioPlay", hl.dsp.exec_cmd("playerctl play-pause"), {
@@ -383,10 +413,10 @@ hl.bind("XF86AudioNext", hl.dsp.exec_cmd("playerctl next"), {
 })
 
 -- Brightness.
-hl.bind("XF86MonBrightnessUp", hl.dsp.exec_cmd("brightnessctl set +5%"), {
+hl.bind("XF86MonBrightnessUp", hl.dsp.exec_cmd("brightnessctl set +5% && desktop-notify brightness"), {
     locked = true,
 })
-hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("brightnessctl set 5%-"), {
+hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("brightnessctl set 5%- && desktop-notify brightness"), {
     locked = true,
 })
 
