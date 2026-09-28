@@ -19,14 +19,14 @@ sudo snapper -c home create --description "before desktop installation"
 echo "==> Hyprland"
 sudo pacman -S --needed --noconfirm \
   hyprland hypridle hyprlock hyprpaper hyprsunset hyprpolkitagent \
-  xdg-desktop-portal xdg-desktop-portal-hyprland polkit \
+  xdg-desktop-portal xdg-desktop-portal-hyprland xdg-desktop-portal-gtk polkit \
   waybar swaync wl-clipboard cliphist grim slurp swappy fuzzel \
   brightnessctl playerctl pavucontrol pamixer nwg-displays nwg-look
 
 echo "==> Terminal and file managers"
 sudo pacman -S --needed --noconfirm \
   foot thunar thunar-archive-plugin thunar-volman gvfs udisks2 tumbler \
-  file-roller ffmpegthumbnailer chafa yazi 7zip
+  file-roller ffmpegthumbnailer chafa yazi 7zip qt5ct qt6ct
 
 echo "==> PDF viewer"
 sudo pacman -S --needed --noconfirm zathura zathura-pdf-mupdf
@@ -64,7 +64,79 @@ mkdir -p \
   "$HOME/.config/foot" \
   "$HOME/.config/yazi" \
   "$HOME/.config/waybar" \
+  "$HOME/.config/gtk-3.0" \
+  "$HOME/.config/gtk-4.0" \
+  "$HOME/.config/qt5ct" \
+  "$HOME/.config/qt6ct" \
+  "$HOME/.config/environment.d" \
   "$HOME/.local/share/applications"
+
+# System-wide desktop appearance defaults for this user session.
+# GTK: dark appearance + no toolkit animations.
+cat > "$HOME/.config/gtk-3.0/settings.ini" <<'EOF'
+[Settings]
+gtk-theme-name=Adwaita
+gtk-icon-theme-name=Adwaita
+gtk-application-prefer-dark-theme=true
+gtk-enable-animations=false
+gtk-enable-event-sounds=false
+gtk-enable-input-feedback-sounds=false
+EOF
+
+cat > "$HOME/.config/gtk-4.0/settings.ini" <<'EOF'
+[Settings]
+gtk-theme-name=Adwaita
+gtk-icon-theme-name=Adwaita
+gtk-enable-animations=false
+gtk-enable-event-sounds=false
+gtk-enable-input-feedback-sounds=false
+EOF
+
+if command -v gsettings >/dev/null 2>&1; then
+  gsettings set org.gnome.desktop.interface gtk-theme 'Adwaita'
+  gsettings set org.gnome.desktop.interface icon-theme 'Adwaita'
+  gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
+  gsettings set org.gnome.desktop.interface enable-animations false 2>/dev/null || true
+fi
+
+cat > "$HOME/.config/qt5ct/qt5ct.conf" <<'EOF'
+[Appearance]
+color_scheme_path=/usr/share/qt5ct/colors/darker.conf
+custom_palette=true
+standard_dialogs=default
+style=Fusion
+
+[Interface]
+gui_effects=@Invalid()
+EOF
+
+cat > "$HOME/.config/qt6ct/qt6ct.conf" <<'EOF'
+[Appearance]
+color_scheme_path=/usr/share/qt6ct/colors/darker.conf
+custom_palette=true
+standard_dialogs=default
+style=Fusion
+
+[Interface]
+gui_effects=@Invalid()
+EOF
+
+cat > "$HOME/.config/environment.d/90-arch-post-install-desktop.conf" <<'EOF'
+# Toolkit-wide appearance defaults.
+GTK_THEME=Adwaita:dark
+QT_QPA_PLATFORMTHEME=qt5ct:qt6ct
+QT_STYLE_OVERRIDE=Fusion
+QT_QUICK_CONTROLS_STYLE=Fusion
+EOF
+
+# Brave/Chromium: dark mode + reduced motion + zero-duration UI animations.
+cat > "$HOME/.config/brave-flags.conf" <<'EOF'
+--force-dark-mode
+--force-prefers-reduced-motion
+--animation-duration-scale=0
+--wm-window-animations-disabled
+--disable-modal-animations
+EOF
 
 # Preserve an existing Hyprland Lua config instead of silently overwriting it.
 HYPR_CONFIG="$HOME/.config/hypr/hyprland.lua"
@@ -85,7 +157,7 @@ hl.config({
     general = {
         gaps_in = 5,
         gaps_out = 10,
-        border_size = 2,
+        border_size = 0,
         layout = "dwindle",
     },
 
@@ -376,7 +448,7 @@ echo "==> Updating dotfiles Git repository"
 DOTS="$HOME/.dotfiles"
 mkdir -p "$DOTS/config"
 
-for d in hypr foot waybar yazi swaync; do
+for d in hypr foot waybar yazi swaync gtk-3.0 gtk-4.0 qt5ct qt6ct environment.d; do
   if [[ -d "$HOME/.config/$d" ]]; then
     mkdir -p "$DOTS/config/$d"
     rsync -a --delete "$HOME/.config/$d/" "$DOTS/config/$d/"
