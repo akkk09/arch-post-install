@@ -532,14 +532,24 @@ set -euo pipefail
 REPO="$HOME/arch-post-install"
 cd "$REPO"
 
-echo "==> Stashing local changes"
-git stash push -u -m "arch-post-install pre-pull"
+echo "==> Checking local changes"
+STASHED=false
+
+if ! git diff --quiet || ! git diff --cached --quiet || [[ -n "$(git ls-files --others --exclude-standard)" ]]; then
+    echo "==> Stashing local changes"
+    git stash push -u -m "arch-post-install pre-pull"
+    STASHED=true
+else
+    echo "==> Working tree is clean"
+fi
 
 echo "==> Pulling latest changes"
 git pull --ff-only
 
-echo "==> Restoring stashed changes"
-git stash pop || true
+if [[ "$STASHED" == true ]]; then
+    echo "==> Restoring stashed changes"
+    git stash pop
+fi
 
 echo "==> Making shell scripts executable"
 chmod +x ./*.sh
