@@ -258,6 +258,12 @@ hl.bind("SUPER + SHIFT + F", hl.dsp.window.float({
 }), {
     description = "Toggle floating",
 })
+
+hl.bind("SUPER + P", hl.dsp.window.float({
+    action = "toggle",
+}), {
+    description = "Toggle floating window",
+})
 hl.bind("SUPER + M", hl.dsp.exit(), {
     description = "Exit Hyprland",
 })
