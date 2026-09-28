@@ -150,7 +150,7 @@ cat > "$HYPR_CONFIG" <<'EOF'
 -- Small, boring, working baseline for Hyprland 0.55+.
 -- SDRX-Dots is kept separate until its config is migrated to Lua.
 
-local terminal = "foot"
+local terminal = 'foot -D "$HOME"'
 local file_manager = "thunar"
 local launcher = "fuzzel"
 
