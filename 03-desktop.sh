@@ -438,7 +438,9 @@ cat > "$HOME/.config/waybar/config.jsonc" <<'EOF'
     },
 
     "hyprland/submap": {
-        "format": "MODE: {}",
+        "format": "MODE: {submap}",
+        "default-submap": "NORMAL",
+        "always-on": true,
         "tooltip": false
     }
 }
