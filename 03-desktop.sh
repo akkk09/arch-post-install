@@ -11,6 +11,7 @@ set -euo pipefail
 
 [[ $EUID -ne 0 ]] || { echo "Run as your normal user, not root."; exit 1; }
 command -v yay >/dev/null || { echo "Run 01-system.sh first."; exit 1; }
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "==> Pre-desktop snapshots"
 sudo snapper -c root create --description "before desktop installation"
@@ -458,29 +459,7 @@ max_height = 800
 EOF
 
 echo "==> PDF search command"
-mkdir -p "$HOME/.local/bin"
-cat > "$HOME/.local/bin/pdf-search" <<'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
-
-# Search recursively for PDFs below the current directory and open the
-# selected file in Zathura. Use this command from the directory you want to scan.
-ROOT="$PWD"
-
-mapfile -t pdfs < <(fd --type f --extension pdf --hidden --exclude .git . "$ROOT" | sort -f)
-
-if (\${#pdfs[@]} == 0); then
-    echo "No PDF files found under: $ROOT" >&2
-    exit 0
-fi
-
-selected="$(printf '%s\n' "\${pdfs[@]}" | fuzzel --dmenu --prompt="PDF ❯ " || true)"
-
-if [[ -n "$selected" ]]; then
-    zathura "$selected" >/dev/null 2>&1 &
-fi
-EOF
-chmod +x "$HOME/.local/bin/pdf-search"
+install -Dm755 "$SCRIPT_DIR/bin/pdf-search" "$HOME/.local/bin/pdf-search"
 
 echo "==> Notion launchers"
 cat > "$HOME/.local/share/applications/notion.desktop" <<'EOF'
