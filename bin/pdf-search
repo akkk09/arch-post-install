@@ -12,8 +12,21 @@ if ((${#pdfs[@]} == 0)); then
     exit 0
 fi
 
-selected="$(printf "%s\n" "${pdfs[@]}" | fuzzel --dmenu --prompt="PDF ❯ " || true)"
+declare -a display_names=()
+declare -a display_paths=()
+
+for pdf in "${pdfs[@]}"; do
+    display_names+=( "$(basename -- "$pdf")" )
+    display_paths+=( "$pdf" )
+done
+
+selected="$(printf "%s\n" "${display_names[@]}" | fuzzel --dmenu --prompt="PDF ❯ " || true)"
 
 if [[ -n "$selected" ]]; then
-    zathura "$selected" >/dev/null 2>&1 &
+    for i in "${!display_names[@]}"; do
+        if [[ "${display_names[$i]}" == "$selected" ]]; then
+            zathura "${display_paths[$i]}" >/dev/null 2>&1 &
+            break
+        fi
+    done
 fi
