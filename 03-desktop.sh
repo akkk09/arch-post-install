@@ -268,6 +268,23 @@ hl.bind("SUPER + M", hl.dsp.exit(), {
     description = "Exit Hyprland",
 })
 
+-- Mouse controls.
+-- Hold Super + left/right mouse button to move/resize the active window.
+hl.bind("SUPER + mouse:272", hl.dsp.window.drag(), {
+    mouse = true,
+})
+hl.bind("SUPER + mouse:273", hl.dsp.window.resize(), {
+    mouse = true,
+})
+
+-- Hold Super and scroll to switch workspaces.
+hl.bind("SUPER + mouse_up", hl.dsp.focus({ workspace = "e+1" }), {
+    mouse = true,
+})
+hl.bind("SUPER + mouse_down", hl.dsp.focus({ workspace = "e-1" }), {
+    mouse = true,
+})
+
 -- Vim-style focus: h/j/k/l = left/down/up/right.
 for key, direction in pairs({
     h = "l",
