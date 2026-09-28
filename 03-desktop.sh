@@ -63,6 +63,7 @@ mkdir -p \
   "$HOME/.config/hypr" \
   "$HOME/.config/foot" \
   "$HOME/.config/yazi" \
+  "$HOME/.config/waybar" \
   "$HOME/.local/share/applications"
 
 # Preserve an existing Hyprland Lua config instead of silently overwriting it.
@@ -146,6 +147,11 @@ hl.bind("SUPER + D", hl.dsp.exec_cmd(launcher), {
     description = "Open application launcher",
 })
 
+-- Notifications.
+hl.bind("SUPER + N", hl.dsp.exec_cmd("swaync-client -t"), {
+    description = "Toggle notifications",
+})
+
 -- Window management.
 hl.bind("SUPER + Q", hl.dsp.window.close(), {
     description = "Close active window",
@@ -217,6 +223,72 @@ hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("brightnessctl set 5%-"), {
 hl.bind("SUPER + SHIFT + S", hl.dsp.exec_cmd("sh -c 'grim -g \"$(slurp)\" - | wl-copy'"), {
     description = "Screenshot region",
 })
+EOF
+
+cat > "$HOME/.config/waybar/config.jsonc" <<'EOF'
+{
+    "layer": "top",
+    "position": "top",
+    "height": 28,
+    "spacing": 4,
+    "modules-left": [
+        "hyprland/workspaces"
+    ],
+    "modules-center": [
+        "clock"
+    ],
+    "modules-right": [
+        "tray"
+    ],
+
+    "hyprland/workspaces": {
+        "disable-scroll": true,
+        "all-outputs": true,
+        "format": "{icon}",
+        "format-icons": {
+            "active": "●",
+            "default": "○",
+            "urgent": "!"
+        }
+    },
+
+    "clock": {
+        "format": "{:%a %d %b  %H:%M}",
+        "tooltip-format": "<big>{:%A, %d %B %Y}</big>\\n<tt>{calendar}</tt>"
+    },
+
+    "tray": {
+        "icon-size": 16,
+        "spacing": 8
+    }
+}
+EOF
+
+cat > "$HOME/.config/waybar/style.css" <<'EOF'
+* {
+    font-family: "JetBrainsMono Nerd Font";
+    font-size: 12px;
+}
+
+window#waybar {
+    background: rgba(20, 20, 20, 0.92);
+}
+
+#workspaces button {
+    padding: 0 7px;
+    margin: 2px 1px;
+    border-radius: 4px;
+    color: #888888;
+}
+
+#workspaces button.active {
+    color: #ffffff;
+}
+
+#clock,
+#tray {
+    padding: 0 8px;
+}
 EOF
 
 cat > "$HOME/.config/foot/foot.ini" <<'EOF'
