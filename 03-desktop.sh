@@ -526,29 +526,17 @@ write_if_changed "$HOME/.config/waybar/config.jsonc" <<'EOF'
 {
     "layer": "top",
     "position": "top",
-    "height": 28,
+    "height": 30,
     "spacing": 4,
-    "modules-left": [
-        "hyprland/workspaces"
-    ],
-    "modules-center": [
-        "clock"
-    ],
-    "modules-right": [
-        "battery",
-        "hyprland/submap",
-        "tray"
-    ],
+    "modules-left": ["hyprland/workspaces"],
+    "modules-center": ["clock"],
+    "modules-right": ["cpu", "memory", "network", "pulseaudio", "battery", "hyprland/submap", "tray"],
 
     "hyprland/workspaces": {
         "disable-scroll": true,
         "all-outputs": true,
         "format": "{icon}",
-        "format-icons": {
-            "active": "●",
-            "default": "○",
-            "urgent": "!"
-        }
+        "format-icons": { "active": "●", "default": "○", "urgent": "!" }
     },
 
     "clock": {
@@ -556,28 +544,38 @@ write_if_changed "$HOME/.config/waybar/config.jsonc" <<'EOF'
         "tooltip-format": "<big>{:%A, %d %B %Y}</big>\\n<tt>{calendar}</tt>"
     },
 
+    "cpu": {
+        "interval": 2,
+        "format": "CPU {usage}%"
+    },
+
+    "memory": {
+        "interval": 2,
+        "format": "RAM {}%"
+    },
+
+    "network": {
+        "format-wifi": " {essid}",
+        "format-ethernet": "󰈀 {ipaddr}",
+        "format-disconnected": "󰤭 offline",
+        "tooltip-format": "{ifname} via {gwaddr}",
+        "on-click": "nm-connection-editor"
+    },
+
+    "pulseaudio": {
+        "format": "{icon} {volume}%",
+        "format-muted": "󰝟 muted",
+        "format-icons": { "default": ["󰕿", "󰖀", "󰕾"] },
+        "on-click": "pavucontrol",
+        "on-click-right": "pactl set-sink-mute @DEFAULT_SINK@ toggle"
+    },
+
     "battery": {
         "format": "{capacity}% {icon}",
         "format-charging": "{capacity}% 󰂄",
         "format-full": "{capacity}% 󰁹",
-        "format-icons": [
-            "󰂎",
-            "󰁺",
-            "󰁻",
-            "󰁼",
-            "󰁽",
-            "󰁾",
-            "󰁿",
-            "󰂀",
-            "󰂁",
-            "󰂂",
-            "󰁹"
-        ],
-        "states": {
-            "warning": 30,
-            "critical": 15
-        },
-        "tooltip-format": "{capacity}%\n{timeTo}"
+        "format-icons": ["󰂎", "󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"],
+        "states": { "warning": 30, "critical": 15 }
     },
 
     "tray": {
@@ -616,6 +614,10 @@ window#waybar {
 }
 
 #clock,
+#cpu,
+#memory,
+#network,
+#pulseaudio,
 #battery,
 #tray,
 #submap {
@@ -988,6 +990,25 @@ if ! git diff --cached --quiet; then
   fi
 fi
 
+echo "==> Terminal workflow"
+write_if_changed "$HOME/.config/shell/arch-desktop.sh" <<'EOF'
+# Arch desktop helpers
+alias ls='eza --group-directories-first'
+alias ll='eza -lah --group-directories-first'
+alias cat='bat --paging=never'
+alias grep='rg'
+alias find='fd'
+alias top='btop'
+alias lg='lazygit'
+if command -v zoxide >/dev/null 2>&1; then
+  eval "$(zoxide init bash)"
+fi
+EOF
+
+if [[ -f "$HOME/.bashrc" ]] && ! grep -qF 'source "$HOME/.config/shell/arch-desktop.sh"' "$HOME/.bashrc"; then
+  printf '\n# Arch desktop helpers\nsource "$HOME/.config/shell/arch-desktop.sh"\n' >> "$HOME/.bashrc"
+  CONFIG_CHANGED=true
+fi
 echo "==> Verification"
 for cmd in hyprland foot thunar yazi zathura telegram-desktop brave hyprsunset brightnessctl fuzzel swappy swayosd hypridle hyprlock git; do
   if command -v "$cmd" >/dev/null 2>&1; then
