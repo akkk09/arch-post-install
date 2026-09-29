@@ -5,9 +5,7 @@ set -euo pipefail
 # Run AFTER 02-backups.sh.
 #
 # Hyprland 0.55+ uses Lua configuration. This stage installs a small,
-# working baseline first. SDRX-Dots is cloned for later migration, but its
-# upstream installer is intentionally not run because its current config tree
-# still targets the older hyprlang layout.
+# working baseline.
 
 [[ $EUID -ne 0 ]] || { echo "Run as your normal user, not root."; exit 1; }
 command -v yay >/dev/null || { echo "Run 01-system.sh first."; exit 1; }
@@ -95,19 +93,6 @@ else
   echo "WARNING: signal-desktop is not available from the configured AUR sources."
 fi
 
-echo "==> SDRX-Dots source"
-SDRX_DIR="$HOME/.local/src/SDRX-Dots"
-mkdir -p "$(dirname "$SDRX_DIR")"
-
-if [[ -d "$SDRX_DIR/.git" ]]; then
-  echo "  SDRX-Dots already exists; skipping clone/pull."
-else
-  git clone https://github.com/Sadrach34/SDRX-Dots.git "$SDRX_DIR"
-fi
-
-echo "SDRX-Dots cloned to:"
-echo "  $SDRX_DIR"
-echo "Its upstream installer is intentionally skipped for now."
 
 echo "==> Personal configuration"
 mkdir -p \
@@ -240,7 +225,6 @@ fi
 cat > "$HYPR_CONFIG" <<'EOF'
 -- ARCH_POST_INSTALL_BASELINE
 -- Small, boring, working baseline for Hyprland 0.55+.
--- SDRX-Dots is kept separate until its config is migrated to Lua.
 
 local terminal = 'foot -D "$HOME"'
 local file_manager = "thunar"
@@ -955,7 +939,5 @@ echo "  ~/.config/hypr/hyprsunset.conf"
 echo "  ~/.config/foot/foot.ini"
 echo "  ~/.config/yazi/yazi.toml"
 echo
-echo "SDRX-Dots source:"
-echo "  $SDRX_DIR"
 echo
 echo "Reboot before judging the final desktop behavior."
