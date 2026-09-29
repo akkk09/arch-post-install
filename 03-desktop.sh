@@ -88,7 +88,6 @@ echo "==> Telegram"
 install_pacman_if_missing telegram-desktop
 
 echo "==> Brave"
-install_yay_if_missing brave-bin
 
 echo "==> Signal"
 if pacman -Q signal-desktop >/dev/null 2>&1; then
