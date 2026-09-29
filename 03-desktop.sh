@@ -19,7 +19,7 @@ sudo snapper -c home create --description "before desktop installation"
 
 echo "==> Hyprland"
 sudo pacman -S --needed --noconfirm \
-  hyprland hypridle hyprlock hyprpaper hyprsunset hyprpolkitagent \
+  hyprland hypridle hyprlock hyprpaper hyprsunset hyprpolkitagent swayosd \
   xdg-desktop-portal xdg-desktop-portal-hyprland xdg-desktop-portal-gtk polkit \
   waybar swaync wl-clipboard cliphist grim slurp swappy fuzzel \
   brightnessctl playerctl pavucontrol pamixer libnotify nwg-displays nwg-look
@@ -62,6 +62,7 @@ echo "Its upstream installer is intentionally skipped for now."
 echo "==> Personal configuration"
 mkdir -p \
   "$HOME/.config/hypr" \
+  "$HOME/.config/swayosd" \
   "$HOME/.config/foot" \
   "$HOME/.config/yazi" \
   "$HOME/.config/waybar" \
@@ -249,7 +250,9 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("waybar")
     hl.exec_cmd("swaync")
     hl.exec_cmd("hyprsunset")
-    hl.exec_cmd("wl-paste --type text --watch cliphist store")
+    hl.exec_cmd("hypridle")
+    hl.exec_cmd("swayosd-server")
+    hl.exec_cmd("wl-paste" --type text --watch cliphist store")
     hl.exec_cmd("wl-paste --type image --watch cliphist store")
 end)
 
@@ -281,6 +284,11 @@ hl.bind("SUPER + BACKSLASH", hl.dsp.exec_cmd("sh -c 'cmd=$(printf \"%s\\n\" rena
 -- Notifications.
 hl.bind("SUPER + N", hl.dsp.exec_cmd("swaync-client -t"), {
     description = "Toggle notifications",
+})
+
+-- Lock the session manually.
+hl.bind("SUPER + L", hl.dsp.exec_cmd("hyprlock"), {
+    description = "Lock session",
 })
 
 -- Window management.
@@ -403,16 +411,16 @@ for i = 1, 9 do
 end
 
 -- Audio.
-hl.bind("F1", hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle && desktop-notify volume"), {
+hl.bind("F1", hl.dsp.exec_cmd("swayosd-client --output-volume mute-toggle"), {
     locked = true,
 })
-hl.bind("F2", hl.dsp.exec_cmd("wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%- && desktop-notify volume"), {
+hl.bind("F2", hl.dsp.exec_cmd("swayosd-client --output-volume -5"), {
     locked = true,
 })
-hl.bind("F3", hl.dsp.exec_cmd("wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+ && desktop-notify volume"), {
+hl.bind("F3", hl.dsp.exec_cmd("swayosd-client --output-volume +5"), {
     locked = true,
 })
-hl.bind("F4", hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle && desktop-notify mic"), {
+hl.bind("F4", hl.dsp.exec_cmd("swayosd-client --input-volume mute-toggle"), {
     locked = true,
 })
 hl.bind("XF86AudioPlay", hl.dsp.exec_cmd("playerctl play-pause"), {
@@ -426,10 +434,10 @@ hl.bind("XF86AudioNext", hl.dsp.exec_cmd("playerctl next"), {
 })
 
 -- Brightness.
-hl.bind("F6", hl.dsp.exec_cmd("brightnessctl set +5% && desktop-notify brightness"), {
+hl.bind("F6", hl.dsp.exec_cmd("swayosd-client --brightness +5"), {
     locked = true,
 })
-hl.bind("F5", hl.dsp.exec_cmd("brightnessctl set 5%- && desktop-notify brightness"), {
+hl.bind("F5", hl.dsp.exec_cmd("swayosd-client --brightness -5"), {
     locked = true,
 })
 
@@ -590,6 +598,106 @@ blink=yes
 
 [mouse]
 hide-when-typing=yes
+EOF
+
+cat > "$HOME/.config/hypr/hypridle.conf" <<'EOF'
+general {
+    lock_cmd = pidof hyprlock || hyprlock
+    before_sleep_cmd = loginctl lock-session
+    after_sleep_cmd = hyprctl dispatch dpms on
+}
+
+listener {
+    timeout = 600
+    on-timeout = loginctl lock-session
+}
+
+listener {
+    timeout = 900
+    on-timeout = hyprctl dispatch dpms off
+    on-resume = hyprctl dispatch dpms on
+}
+
+listener {
+    timeout = 1800
+    on-timeout = systemctl suspend
+}
+EOF
+
+cat > "$HOME/.config/hypr/hyprlock.conf" <<'EOF'
+general {
+    hide_cursor = true
+    ignore_empty_input = false
+}
+
+animations {
+    enabled = false
+}
+
+background {
+    monitor =
+    color = rgba(14, 14, 14, 1.0)
+    blur_passes = 2
+    blur_size = 4
+}
+
+label {
+    monitor =
+    text = $TIME
+    font_size = 72
+    font_family = JetBrainsMono Nerd Font
+    color = rgba(238, 238, 238, 1.0)
+    position = 0, 80
+    halign = center
+    valign = center
+}
+
+label {
+    monitor =
+    text = cmd[update:60000] date +"%A, %d %B %Y"
+    font_size = 18
+    font_family = JetBrainsMono Nerd Font
+    color = rgba(150, 150, 150, 1.0)
+    position = 0, 10
+    halign = center
+    valign = center
+}
+
+input-field {
+    monitor =
+    size = 280, 50
+    outline_thickness = 2
+    dots_size = 0.25
+    dots_spacing = 0.2
+    dots_center = true
+    outer_color = rgba(80, 80, 80, 1.0)
+    inner_color = rgba(25, 25, 25, 1.0)
+    font_color = rgba(238, 238, 238, 1.0)
+    fade_on_empty = true
+    placeholder_text = <i>Enter password...</i>
+    fail_text = <i>Authentication failed</i>
+    position = 0, -80
+    halign = center
+    valign = center
+}
+EOF
+
+cat > "$HOME/.config/swayosd/style.css" <<'EOF'
+window#osd {
+    background: rgba(20, 20, 20, 0.92);
+    border: 0;
+    border-radius: 8px;
+}
+
+label {
+    color: #eeeeee;
+}
+
+progressbar trough,
+progressbar progress {
+    min-height: 6px;
+    border-radius: 3px;
+}
 EOF
 
 cat > "$HOME/.config/hypr/hyprsunset.conf" <<'EOF'
@@ -753,7 +861,7 @@ echo "==> Updating dotfiles Git repository"
 DOTS="$HOME/.dotfiles"
 mkdir -p "$DOTS/config"
 
-for d in hypr foot waybar yazi swaync gtk-3.0 gtk-4.0 qt5ct qt6ct environment.d; do
+for d in hypr swayosd foot waybar yazi swaync gtk-3.0 gtk-4.0 qt5ct qt6ct environment.d; do
   if [[ -d "$HOME/.config/$d" ]]; then
     mkdir -p "$DOTS/config/$d"
     rsync -a --delete "$HOME/.config/$d/" "$DOTS/config/$d/"
