@@ -117,7 +117,7 @@ mkdir -p \
 
 # System-wide desktop appearance defaults for this user session.
 # GTK: dark appearance + no toolkit animations.
-cat > "$HOME/.config/gtk-3.0/settings.ini" <<'EOF'
+write_if_changed "$HOME/.config/gtk-3.0/settings.ini" <<'EOF'
 [Settings]
 gtk-theme-name=Adwaita
 gtk-icon-theme-name=Adwaita
@@ -127,7 +127,7 @@ gtk-enable-event-sounds=false
 gtk-enable-input-feedback-sounds=false
 EOF
 
-cat > "$HOME/.config/gtk-4.0/settings.ini" <<'EOF'
+write_if_changed "$HOME/.config/gtk-4.0/settings.ini" <<'EOF'
 [Settings]
 gtk-theme-name=Adwaita
 gtk-icon-theme-name=Adwaita
@@ -143,7 +143,7 @@ if command -v gsettings >/dev/null 2>&1; then
   [[ "$(gsettings get org.gnome.desktop.interface enable-animations 2>/dev/null)" == "false" ]] || { gsettings set org.gnome.desktop.interface enable-animations false 2>/dev/null || true; CONFIG_CHANGED=true; }
 fi
 
-cat > "$HOME/.config/qt5ct/qt5ct.conf" <<'EOF'
+write_if_changed "$HOME/.config/qt5ct/qt5ct.conf" <<'EOF'
 [Appearance]
 color_scheme_path=/usr/share/qt5ct/colors/darker.conf
 custom_palette=true
@@ -154,7 +154,7 @@ style=Fusion
 gui_effects=@Invalid()
 EOF
 
-cat > "$HOME/.config/qt6ct/qt6ct.conf" <<'EOF'
+write_if_changed "$HOME/.config/qt6ct/qt6ct.conf" <<'EOF'
 [Appearance]
 color_scheme_path=/usr/share/qt6ct/colors/darker.conf
 custom_palette=true
@@ -165,7 +165,7 @@ style=Fusion
 gui_effects=@Invalid()
 EOF
 
-cat > "$HOME/.config/environment.d/90-arch-post-install-desktop.conf" <<'EOF'
+write_if_changed "$HOME/.config/environment.d/90-arch-post-install-desktop.conf" <<'EOF'
 # Toolkit-wide appearance defaults.
 GTK_THEME=Adwaita:dark
 QT_QPA_PLATFORMTHEME=qt5ct:qt6ct
@@ -174,7 +174,7 @@ QT_QUICK_CONTROLS_STYLE=Fusion
 EOF
 
 # Brave/Chromium: dark mode + reduced motion + zero-duration UI animations.
-cat > "$HOME/.config/brave-flags.conf" <<'EOF'
+write_if_changed "$HOME/.config/brave-flags.conf" <<'EOF'
 --force-dark-mode
 --force-prefers-reduced-motion
 --animation-duration-scale=0
@@ -187,7 +187,7 @@ HYPR_CONFIG="$HOME/.config/hypr/hyprland.lua"
 
 # Small OSD helper. swaync is the notification daemon; this script only
 # reads the value after the change and sends the resulting state.
-cat > "$HOME/.local/bin/desktop-notify" <<'EOF'
+write_if_changed "$HOME/.local/bin/desktop-notify" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -487,7 +487,7 @@ hl.bind("SUPER + SHIFT + S", hl.dsp.exec_cmd("sh -c 'grim -g \"$(slurp)\" - | sw
 })
 EOF
 
-cat > "$HOME/.config/fuzzel/fuzzel.ini" <<'EOF'
+write_if_changed "$HOME/.config/fuzzel/fuzzel.ini" <<'EOF'
 [main]
 font=JetBrainsMono Nerd Font:size=11
 terminal=foot
@@ -513,7 +513,7 @@ width=0
 radius=6
 EOF
 
-cat > "$HOME/.config/waybar/config.jsonc" <<'EOF'
+write_if_changed "$HOME/.config/waybar/config.jsonc" <<'EOF'
 {
     "layer": "top",
     "position": "top",
@@ -585,7 +585,7 @@ cat > "$HOME/.config/waybar/config.jsonc" <<'EOF'
 }
 EOF
 
-cat > "$HOME/.config/waybar/style.css" <<'EOF'
+write_if_changed "$HOME/.config/waybar/style.css" <<'EOF'
 * {
     font-family: "JetBrainsMono Nerd Font";
     font-size: 12px;
@@ -623,7 +623,7 @@ window#waybar {
 }
 EOF
 
-cat > "$HOME/.config/foot/foot.ini" <<'EOF'
+write_if_changed "$HOME/.config/foot/foot.ini" <<'EOF'
 [main]
 term=xterm-256color
 font=JetBrainsMono Nerd Font:size=11
@@ -640,7 +640,7 @@ blink=yes
 hide-when-typing=yes
 EOF
 
-cat > "$HOME/.config/hypr/hypridle.conf" <<'EOF'
+write_if_changed "$HOME/.config/hypr/hypridle.conf" <<'EOF'
 general {
     lock_cmd = pidof hyprlock || hyprlock
     before_sleep_cmd = loginctl lock-session
@@ -664,7 +664,7 @@ listener {
 }
 EOF
 
-cat > "$HOME/.config/hypr/hyprlock.conf" <<'EOF'
+write_if_changed "$HOME/.config/hypr/hyprlock.conf" <<'EOF'
 general {
     hide_cursor = true
     ignore_empty_input = false
@@ -722,7 +722,7 @@ input-field {
 }
 EOF
 
-cat > "$HOME/.config/swayosd/style.css" <<'EOF'
+write_if_changed "$HOME/.config/swayosd/style.css" <<'EOF'
 window#osd {
     background: rgba(20, 20, 20, 0.92);
     border: 0;
@@ -740,7 +740,7 @@ progressbar progress {
 }
 EOF
 
-cat > "$HOME/.config/hypr/hyprsunset.conf" <<'EOF'
+write_if_changed "$HOME/.config/hypr/hyprsunset.conf" <<'EOF'
 # hyprsunset time profiles
 max-gamma = 100
 
@@ -763,7 +763,7 @@ profile {
 }
 EOF
 
-cat > "$HOME/.config/yazi/yazi.toml" <<'EOF'
+write_if_changed "$HOME/.config/yazi/yazi.toml" <<'EOF'
 [manager]
 show_hidden = true
 sort_by = "natural"
@@ -783,7 +783,7 @@ install -Dm755 "$SCRIPT_DIR/bin/pdf-search" "$HOME/.local/bin/pdf-search"
 echo "==> Commandlets"
 install -d "$HOME/.local/bin"
 
-cat > "$HOME/.local/bin/rename-camel" <<'EOF'
+write_if_changed "$HOME/.local/bin/rename-camel" <<'EOF'
 #!/usr/bin/env python3
 import os
 import re
@@ -840,7 +840,7 @@ print("Rename complete.")
 EOF
 [[ -x "$HOME/.local/bin/rename-camel" ]] || chmod +x "$HOME/.local/bin/rename-camel"
 
-cat > "$HOME/.local/bin/arch-post-install-update" <<'EOF'
+write_if_changed "$HOME/.local/bin/arch-post-install-update" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -875,7 +875,7 @@ EOF
 [[ -x "$HOME/.local/bin/arch-post-install-update" ]] || chmod +x "$HOME/.local/bin/arch-post-install-update"
 
 echo "==> Notion launchers"
-cat > "$HOME/.local/share/applications/notion.desktop" <<'EOF'
+write_if_changed "$HOME/.local/share/applications/notion.desktop" <<'EOF'
 [Desktop Entry]
 Name=Notion
 Comment=Notion workspace
@@ -886,7 +886,7 @@ Type=Application
 Categories=Office;Productivity;
 EOF
 
-cat > "$HOME/.local/share/applications/notion-calendar.desktop" <<'EOF'
+write_if_changed "$HOME/.local/share/applications/notion-calendar.desktop" <<'EOF'
 [Desktop Entry]
 Name=Notion Calendar
 Comment=Notion Calendar
