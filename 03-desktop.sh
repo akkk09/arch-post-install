@@ -59,9 +59,9 @@ install_yay_if_missing() {
     fi
   done
 
-  if ((\${#missing[@]})); then
+  if ((${#missing[@]})); then
     SYSTEM_CHANGED=true
-    yay -S --needed --noconfirm "\${missing[@]}"
+    yay -S --needed --noconfirm "${missing[@]}"
   else
     echo "  all requested packages are already installed"
   fi
