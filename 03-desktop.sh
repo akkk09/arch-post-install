@@ -337,7 +337,7 @@ hl.bind("SUPER + N", hl.dsp.exec_cmd("swaync-client -t"), {
 })
 
 -- Lock the session manually.
-hl.bind("SUPER + L", hl.dsp.exec_cmd("hyprlock"), {
+hl.bind("SUPER + SHIFT + L", hl.dsp.exec_cmd("hyprlock"), {
     description = "Lock session",
 })
 
