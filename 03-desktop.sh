@@ -104,6 +104,7 @@ echo "==> Personal configuration"
 mkdir -p \
   "$HOME/.config/hypr" \
   "$HOME/.config/swayosd" \
+  "$HOME/.config/swappy" \
   "$HOME/.config/foot" \
   "$HOME/.config/yazi" \
   "$HOME/.config/waybar" \
@@ -114,6 +115,7 @@ mkdir -p \
   "$HOME/.config/qt6ct" \
   "$HOME/.config/environment.d" \
   "$HOME/.local/share/applications"
+mkdir -p "$HOME/Pictures/Screenshots"
 
 # System-wide desktop appearance defaults for this user session.
 # GTK: dark appearance + no toolkit animations.
@@ -733,6 +735,17 @@ input-field {
 }
 EOF
 
+write_if_changed "$HOME/.config/swappy/config" <<'EOF'
+[Default]
+save_dir=$HOME/Pictures/Screenshots
+save_filename_format=swappy-%Y%m%d-%H%M%S.png
+show_panel=true
+line_size=5
+text_size=20
+paint_mode=brush
+early_exit=false
+auto_save=false
+EOF
 write_if_changed "$HOME/.config/swayosd/style.css" <<'EOF'
 window#osd {
     background: rgba(20, 20, 20, 0.92);
@@ -970,7 +983,7 @@ echo "==> Updating dotfiles Git repository"
 DOTS="$HOME/.dotfiles"
 mkdir -p "$DOTS/config"
 
-for d in hypr swayosd foot waybar yazi swaync gtk-3.0 gtk-4.0 qt5ct qt6ct environment.d; do
+for d in hypr swayosd swappy foot waybar yazi swaync gtk-3.0 gtk-4.0 qt5ct qt6ct environment.d; do
   if [[ -d "$HOME/.config/$d" ]]; then
     mkdir -p "$DOTS/config/$d"
     rsync -a --delete "$HOME/.config/$d/" "$DOTS/config/$d/"
