@@ -13,34 +13,84 @@ set -euo pipefail
 command -v yay >/dev/null || { echo "Run 01-system.sh first."; exit 1; }
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
-echo "==> Pre-desktop snapshots"
-sudo snapper -c root create --description "before desktop installation"
-sudo snapper -c home create --description "before desktop installation"
+# Only write a generated file when its contents actually changed.
+write_if_changed() {
+  local target="$1"
+  local tmp
+  tmp="$(mktemp)"
+  cat > "$tmp"
+
+  if [[ -f "$target" ]] && cmp -s "$tmp" "$target"; then
+    rm -f "$tmp"
+    return 1
+  fi
+
+  mkdir -p "$(dirname "$target")"
+  mv "$tmp" "$target"
+  return 0
+}
+
+install_pacman_if_missing() {
+  local missing=()
+  local pkg
+
+  for pkg in "$@"; do
+    if ! pacman -Q "$pkg" >/dev/null 2>&1; then
+      missing+=("$pkg")
+    fi
+  done
+
+  if ((\${#missing[@]})); then
+    sudo pacman -S --needed --noconfirm "\${missing[@]}"
+  else
+    echo "  all requested packages are already installed"
+  fi
+}
+
+install_yay_if_missing() {
+  local missing=()
+  local pkg
+
+  for pkg in "$@"; do
+    if ! pacman -Q "$pkg" >/dev/null 2>&1; then
+      missing+=("$pkg")
+    fi
+  done
+
+  if ((\${#missing[@]})); then
+    yay -S --needed --noconfirm "\${missing[@]}"
+  else
+    echo "  all requested packages are already installed"
+  fi
+}
+
 
 echo "==> Hyprland"
-sudo pacman -S --needed --noconfirm \
+install_pacman_if_missing \
   hyprland hypridle hyprlock hyprpaper hyprsunset hyprpolkitagent swayosd \
   xdg-desktop-portal xdg-desktop-portal-hyprland xdg-desktop-portal-gtk polkit \
   waybar swaync wl-clipboard cliphist grim slurp swappy fuzzel \
   brightnessctl playerctl pavucontrol pamixer libnotify nwg-displays nwg-look
 
 echo "==> Terminal and file managers"
-sudo pacman -S --needed --noconfirm \
+install_pacman_if_missing \
   foot thunar thunar-archive-plugin thunar-volman gvfs udisks2 tumbler \
   file-roller ffmpegthumbnailer chafa yazi 7zip qt5ct qt6ct
 
 echo "==> PDF viewer"
-sudo pacman -S --needed --noconfirm zathura zathura-pdf-mupdf
+install_pacman_if_missing zathura zathura-pdf-mupdf
 
 echo "==> Telegram"
-sudo pacman -S --needed --noconfirm telegram-desktop
+install_pacman_if_missing telegram-desktop
 
 echo "==> Brave"
-yay -S --needed --noconfirm brave-bin
+install_yay_if_missing brave-bin
 
 echo "==> Signal"
-if yay -Si signal-desktop >/dev/null 2>&1; then
-  yay -S --needed --noconfirm signal-desktop
+if pacman -Q signal-desktop >/dev/null 2>&1; then
+  echo "  signal-desktop is already installed"
+elif yay -Si signal-desktop >/dev/null 2>&1; then
+  install_yay_if_missing signal-desktop
 else
   echo "WARNING: signal-desktop is not available from the configured AUR sources."
 fi
@@ -50,7 +100,7 @@ SDRX_DIR="$HOME/.local/src/SDRX-Dots"
 mkdir -p "$(dirname "$SDRX_DIR")"
 
 if [[ -d "$SDRX_DIR/.git" ]]; then
-  git -C "$SDRX_DIR" pull --ff-only
+  echo "  SDRX-Dots already exists; skipping clone/pull."
 else
   git clone https://github.com/Sadrach34/SDRX-Dots.git "$SDRX_DIR"
 fi
@@ -180,7 +230,7 @@ case "${1:-}" in
     ;;
 esac
 EOF
-chmod +x "$HOME/.local/bin/desktop-notify"
+[[ -x "$HOME/.local/bin/desktop-notify" ]] || chmod +x "$HOME/.local/bin/desktop-notify"
 
 
 if [[ -f "$HYPR_CONFIG" ]] && ! grep -q "ARCH_POST_INSTALL_BASELINE" "$HYPR_CONFIG"; then
@@ -442,7 +492,7 @@ hl.bind("F5", hl.dsp.exec_cmd("swayosd-client --brightness -5"), {
 })
 
 -- Screenshots.
-hl.bind("SUPER + SHIFT + S", hl.dsp.exec_cmd("sh -c 'grim -g \"$(slurp)\" - | wl-copy'"), {
+hl.bind("SUPER + SHIFT + S", hl.dsp.exec_cmd("sh -c 'grim -g \"$(slurp)\" - | swappy -f -'"), {
     description = "Screenshot region",
 })
 EOF
@@ -798,7 +848,7 @@ for old, new in changes:
 
 print("Rename complete.")
 EOF
-chmod +x "$HOME/.local/bin/rename-camel"
+[[ -x "$HOME/.local/bin/rename-camel" ]] || chmod +x "$HOME/.local/bin/rename-camel"
 
 cat > "$HOME/.local/bin/arch-post-install-update" <<'EOF'
 #!/usr/bin/env bash
@@ -832,7 +882,7 @@ chmod +x ./*.sh
 echo "==> Done"
 git status --short
 EOF
-chmod +x "$HOME/.local/bin/arch-post-install-update"
+[[ -x "$HOME/.local/bin/arch-post-install-update" ]] || chmod +x "$HOME/.local/bin/arch-post-install-update"
 
 echo "==> Notion launchers"
 cat > "$HOME/.local/share/applications/notion.desktop" <<'EOF'
@@ -882,7 +932,7 @@ if ! git diff --cached --quiet; then
 fi
 
 echo "==> Verification"
-for cmd in hyprland foot thunar yazi zathura telegram-desktop brave hyprsunset brightnessctl fuzzel git; do
+for cmd in hyprland foot thunar yazi zathura telegram-desktop brave hyprsunset brightnessctl fuzzel swappy swayosd hypridle hyprlock git; do
   if command -v "$cmd" >/dev/null 2>&1; then
     printf '[OK] %s\n' "$cmd"
   else
