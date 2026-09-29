@@ -22,7 +22,7 @@ write_if_changed() {
 
   if [[ -f "$target" ]] && cmp -s "$tmp" "$target"; then
     rm -f "$tmp"
-    return 1
+    return 0
   fi
 
   mkdir -p "$(dirname "$target")"
