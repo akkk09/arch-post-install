@@ -753,7 +753,6 @@ write_if_changed "$HOME/.config/systemd/user/swayosd.service" <<'EOF'
 Description=SwayOSD Server
 PartOf=graphical-session.target
 After=graphical-session.target
-Restart=always
 
 [Service]
 Type=simple
