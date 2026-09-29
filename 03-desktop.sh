@@ -321,6 +321,15 @@ hl.bind("SUPER + BACKSLASH", hl.dsp.exec_cmd("sh -c 'cmd=$(printf \"%s\\n\" rena
     description = "Open commandlet menu",
 })
 
+-- System menu.
+hl.bind("SUPER + X", hl.dsp.exec_cmd("$HOME/.local/bin/system-menu"), {
+    description = "Open system menu",
+})
+
+-- Developer menu.
+hl.bind("SUPER + SHIFT + D", hl.dsp.exec_cmd("$HOME/.local/bin/dev-menu"), {
+    description = "Open developer menu",
+})
 -- Notifications.
 hl.bind("SUPER + N", hl.dsp.exec_cmd("swaync-client -t"), {
     description = "Toggle notifications",
@@ -874,6 +883,64 @@ git status --short
 EOF
 [[ -x "$HOME/.local/bin/arch-post-install-update" ]] || chmod +x "$HOME/.local/bin/arch-post-install-update"
 
+echo "==> System menu"
+write_if_changed "$HOME/.local/bin/system-menu" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+choice="$(printf '%s\n' \
+  'Lock' \
+  'Suspend' \
+  'Logout' \
+  'Reboot' \
+  'Shutdown' \
+  'Audio' \
+  'Network' \
+  | fuzzel --dmenu --prompt='System ❯ ')
+
+case "$choice" in
+  Lock) loginctl lock-session ;;
+  Suspend) systemctl suspend ;;
+  Logout) loginctl terminate-user "$USER" ;;
+  Reboot) systemctl reboot ;;
+  Shutdown) systemctl poweroff ;;
+  Audio) pavucontrol ;;
+  Network)
+    if command -v nm-connection-editor >/dev/null 2>&1; then
+      nm-connection-editor
+    else
+      notify-send "Network" "nm-connection-editor is not installed"
+    fi
+    ;;
+esac
+EOF
+chmod +x "$HOME/.local/bin/system-menu"
+echo "==> Developer menu"
+write_if_changed "$HOME/.local/bin/dev-menu" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+choice="$(printf '%s\n' \
+  'New Rust project' \
+  'New Go project' \
+  'New Python project' \
+  'New TypeScript project' \
+  'Git status' \
+  'LazyGit' \
+  'Btop' \
+  | fuzzel --dmenu --prompt='Dev ❯ ')
+
+case "$choice" in
+  'New Rust project') read -rp 'Project name: ' name; [[ -n "$name" ]] && cargo new "$name" && exec foot -D "$PWD/$name" ;;
+  'New Go project') read -rp 'Project name: ' name; [[ -n "$name" ]] && mkdir -p "$name" && cd "$name" && go mod init "$name" && exec foot ;;
+  'New Python project') read -rp 'Project name: ' name; [[ -n "$name" ]] && mkdir -p "$name" && cd "$name" && python -m venv .venv && exec foot ;;
+  'New TypeScript project') read -rp 'Project name: ' name; [[ -n "$name" ]] && mkdir -p "$name" && cd "$name" && npm init -y && npm install -D typescript && exec foot ;;
+  'Git status') exec foot -e bash -lc 'git status; exec bash' ;;
+  'LazyGit') exec foot -e lazygit ;;
+  'Btop') exec foot -e btop ;;
+esac
+EOF
+chmod +x "$HOME/.local/bin/dev-menu"
 echo "==> Notion launchers"
 write_if_changed "$HOME/.local/share/applications/notion.desktop" <<'EOF'
 [Desktop Entry]
