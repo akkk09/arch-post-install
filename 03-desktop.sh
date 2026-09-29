@@ -113,6 +113,7 @@ mkdir -p \
   "$HOME/.config/qt5ct" \
   "$HOME/.config/qt6ct" \
   "$HOME/.config/environment.d" \
+  "$HOME/.config/systemd/user" \
   "$HOME/.local/share/applications"
 mkdir -p "$HOME/Pictures/Screenshots"
 
@@ -292,7 +293,9 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("swaync")
     hl.exec_cmd("hyprsunset")
     hl.exec_cmd("hypridle")
-    hl.exec_cmd("swayosd-server")
+    hl.exec_cmd("systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE")
+    hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE")
+    hl.exec_cmd("systemctl --user start swayosd.service")
     hl.exec_cmd("wl-paste --type text --watch cliphist store")
     hl.exec_cmd("wl-paste --type image --watch cliphist store")
 end)
@@ -745,6 +748,23 @@ paint_mode=brush
 early_exit=false
 auto_save=false
 EOF
+write_if_changed "$HOME/.config/systemd/user/swayosd.service" <<'EOF'
+[Unit]
+Description=SwayOSD Server
+PartOf=graphical-session.target
+After=graphical-session.target
+Restart=always
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/swayosd-server
+Restart=on-failure
+RestartSec=2s
+
+[Install]
+WantedBy=graphical-session.target
+EOF
+
 write_if_changed "$HOME/.config/swayosd/style.css" <<'EOF'
 window#osd {
     background: rgba(20, 20, 20, 0.92);
@@ -977,6 +997,10 @@ Terminal=false
 Type=Application
 Categories=Office;Calendar;Productivity;
 EOF
+
+echo "==> Enabling SwayOSD user service"
+systemctl --user daemon-reload
+systemctl --user enable swayosd.service
 
 echo "==> Updating dotfiles Git repository"
 DOTS="$HOME/.dotfiles"
