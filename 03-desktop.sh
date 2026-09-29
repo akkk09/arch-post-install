@@ -41,9 +41,9 @@ install_pacman_if_missing() {
     fi
   done
 
-  if ((\${#missing[@]})); then
+  if ((${#missing[@]})); then
     SYSTEM_CHANGED=true
-    sudo pacman -S --needed --noconfirm "\${missing[@]}"
+    sudo pacman -S --needed --noconfirm "${missing[@]}"
   else
     echo "  all requested packages are already installed"
   fi
