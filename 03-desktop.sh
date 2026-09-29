@@ -9,6 +9,8 @@ set -euo pipefail
 
 [[ $EUID -ne 0 ]] || { echo "Run as your normal user, not root."; exit 1; }
 command -v yay >/dev/null || { echo "Run 01-system.sh first."; exit 1; }
+SYSTEM_CHANGED=false
+CONFIG_CHANGED=false
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 # Only write a generated file when its contents actually changed.
@@ -25,6 +27,7 @@ write_if_changed() {
 
   mkdir -p "$(dirname "$target")"
   mv "$tmp" "$target"
+  CONFIG_CHANGED=true
   return 0
 }
 
@@ -39,6 +42,7 @@ install_pacman_if_missing() {
   done
 
   if ((\${#missing[@]})); then
+    SYSTEM_CHANGED=true
     sudo pacman -S --needed --noconfirm "\${missing[@]}"
   else
     echo "  all requested packages are already installed"
@@ -56,6 +60,7 @@ install_yay_if_missing() {
   done
 
   if ((\${#missing[@]})); then
+    SYSTEM_CHANGED=true
     yay -S --needed --noconfirm "\${missing[@]}"
   else
     echo "  all requested packages are already installed"
@@ -73,7 +78,8 @@ install_pacman_if_missing \
 echo "==> Terminal and file managers"
 install_pacman_if_missing \
   foot thunar thunar-archive-plugin thunar-volman gvfs udisks2 tumbler \
-  file-roller ffmpegthumbnailer chafa yazi 7zip qt5ct qt6ct
+  file-roller ffmpegthumbnailer chafa yazi 7zip qt5ct qt6ct \
+  fzf fd ripgrep zoxide bat eza btop dust duf lazygit
 
 echo "==> PDF viewer"
 install_pacman_if_missing zathura zathura-pdf-mupdf
@@ -131,10 +137,10 @@ gtk-enable-input-feedback-sounds=false
 EOF
 
 if command -v gsettings >/dev/null 2>&1; then
-  gsettings set org.gnome.desktop.interface gtk-theme 'Adwaita'
-  gsettings set org.gnome.desktop.interface icon-theme 'Adwaita'
-  gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
-  gsettings set org.gnome.desktop.interface enable-animations false 2>/dev/null || true
+  [[ "$(gsettings get org.gnome.desktop.interface gtk-theme 2>/dev/null)" == "'Adwaita'" ]] || { gsettings set org.gnome.desktop.interface gtk-theme 'Adwaita'; CONFIG_CHANGED=true; }
+  [[ "$(gsettings get org.gnome.desktop.interface icon-theme 2>/dev/null)" == "'Adwaita'" ]] || { gsettings set org.gnome.desktop.interface icon-theme 'Adwaita'; CONFIG_CHANGED=true; }
+  [[ "$(gsettings get org.gnome.desktop.interface color-scheme 2>/dev/null)" == "'prefer-dark'" ]] || { gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'; CONFIG_CHANGED=true; }
+  [[ "$(gsettings get org.gnome.desktop.interface enable-animations 2>/dev/null)" == "false" ]] || { gsettings set org.gnome.desktop.interface enable-animations false 2>/dev/null || true; CONFIG_CHANGED=true; }
 fi
 
 cat > "$HOME/.config/qt5ct/qt5ct.conf" <<'EOF'
@@ -924,11 +930,17 @@ for cmd in hyprland foot thunar yazi zathura telegram-desktop brave hyprsunset b
   fi
 done
 
-fc-cache -f >/dev/null 2>&1 || true
-update-desktop-database "$HOME/.local/share/applications" >/dev/null 2>&1 || true
+if [[ "$CONFIG_CHANGED" == true ]]; then
+  fc-cache -f >/dev/null 2>&1 || true
+  update-desktop-database "$HOME/.local/share/applications" >/dev/null 2>&1 || true
+fi
 
-sudo snapper -c root create --description "desktop installation complete"
-sudo snapper -c home create --description "desktop installation complete"
+if [[ "$SYSTEM_CHANGED" == true || "$CONFIG_CHANGED" == true ]]; then
+  sudo snapper -c root create --description "desktop installation complete"
+  sudo snapper -c home create --description "desktop installation complete"
+else
+  echo "==> No system/config changes detected; skipping cache refresh and Snapper snapshots."
+fi
 
 echo
 echo "==> Desktop stage complete."
