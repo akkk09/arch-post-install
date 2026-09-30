@@ -73,7 +73,8 @@ install_pacman_if_missing \
   hyprland hypridle hyprlock hyprpaper hyprsunset hyprpolkitagent swayosd \
   xdg-desktop-portal xdg-desktop-portal-hyprland xdg-desktop-portal-gtk polkit \
   waybar swaync wl-clipboard cliphist grim slurp swappy fuzzel \
-  brightnessctl playerctl pavucontrol pamixer libnotify nwg-displays nwg-look
+  brightnessctl playerctl pavucontrol pamixer libnotify nwg-displays nwg-look \
+  networkmanager greetd greetd-tuigreet
 
 echo "==> Terminal and file managers"
 install_pacman_if_missing \
@@ -114,6 +115,7 @@ mkdir -p \
   "$HOME/.config/qt6ct" \
   "$HOME/.config/environment.d" \
   "$HOME/.config/systemd/user" \
+  "$HOME/.local/bin" \
   "$HOME/.local/share/applications"
 mkdir -p "$HOME/Pictures/Screenshots"
 
@@ -563,7 +565,8 @@ write_if_changed "$HOME/.config/waybar/config.jsonc" <<'EOF'
         "format-ethernet": "󰈀 {ipaddr}",
         "format-disconnected": "󰤭 offline",
         "tooltip-format": "{ifname} via {gwaddr}",
-        "on-click": "nm-connection-editor"
+        "on-click": "$HOME/.local/bin/wifi-menu",
+        "on-click-right": "nm-connection-editor"
     },
 
     "pulseaudio": {
@@ -948,6 +951,368 @@ case "$choice" in
 esac
 EOF
 chmod +x "$HOME/.local/bin/system-menu"
+echo "==> Wi-Fi menu"
+write_if_changed "$HOME/.local/bin/wifi-menu" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+command -v nmcli >/dev/null 2>&1 || {
+  notify-send "Wi-Fi" "NetworkManager is not installed."
+  exit 1
+}
+
+wifi_state="$(nmcli radio wifi)"
+if [[ "$wifi_state" == "disabled" ]]; then
+  choice="$(printf '%s\n' 'Turn Wi-Fi on' 'Quit' | fuzzel --dmenu --prompt='Wi-Fi ❯ ')"
+  [[ "$choice" == "Turn Wi-Fi on" ]] && nmcli radio wifi on
+  exit 0
+fi
+
+nmcli device wifi rescan >/dev/null 2>&1 || true
+
+wifi_device="$(nmcli -t -f DEVICE,TYPE device status | awk -F: '$2 == "wifi" {print $1; exit}')"
+if [[ -z "$wifi_device" ]]; then
+  notify-send "Wi-Fi" "No Wi-Fi device found."
+  exit 1
+fi
+
+connected="$(nmcli -t -f GENERAL.CONNECTION device show "$wifi_device" | cut -d: -f2-)"
+signal_list="$(
+  nmcli -t -f IN-USE,SSID,SIGNAL,SECURITY device wifi list ifname "$wifi_device" |
+  awk -F: 'NF >= 4 && $2 != "" {
+    marker=($1 == "*") ? "●" : "○"
+    security=($4 == "" ? "open" : $4)
+    printf "%s  %-32s %3s%%  %s\n", marker, $2, $3, security
+  }' |
+  awk '!seen[$0]++'
+)"
+
+menu="$signal_list"
+menu+=
+write_if_changed "$HOME/.local/bin/dev-menu" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+choice="$(printf '%s\n' \
+  'New Rust project' \
+  'New Go project' \
+  'New Python project' \
+  'New TypeScript project' \
+  'Git status' \
+  'LazyGit' \
+  'Btop' \
+  | fuzzel --dmenu --prompt='Dev ❯ ')
+
+case "$choice" in
+  'New Rust project') read -rp 'Project name: ' name; [[ -n "$name" ]] && cargo new "$name" && exec foot -D "$PWD/$name" ;;
+  'New Go project') read -rp 'Project name: ' name; [[ -n "$name" ]] && mkdir -p "$name" && cd "$name" && go mod init "$name" && exec foot ;;
+  'New Python project') read -rp 'Project name: ' name; [[ -n "$name" ]] && mkdir -p "$name" && cd "$name" && python -m venv .venv && exec foot ;;
+  'New TypeScript project') read -rp 'Project name: ' name; [[ -n "$name" ]] && mkdir -p "$name" && cd "$name" && npm init -y && npm install -D typescript && exec foot ;;
+  'Git status') exec foot -e bash -lc 'git status; exec bash' ;;
+  'LazyGit') exec foot -e lazygit ;;
+  'Btop') exec foot -e btop ;;
+esac
+EOF
+chmod +x "$HOME/.local/bin/dev-menu"
+echo "==> Notion launchers"
+write_if_changed "$HOME/.local/share/applications/notion.desktop" <<'EOF'
+[Desktop Entry]
+Name=Notion
+Comment=Notion workspace
+Exec=brave --app=https://www.notion.so/
+Icon=brave
+Terminal=false
+Type=Application
+Categories=Office;Productivity;
+EOF
+
+write_if_changed "$HOME/.local/share/applications/notion-calendar.desktop" <<'EOF'
+[Desktop Entry]
+Name=Notion Calendar
+Comment=Notion Calendar
+Exec=brave --app=https://calendar.notion.so/
+Icon=brave
+Terminal=false
+Type=Application
+Categories=Office;Calendar;Productivity;
+EOF
+
+echo "==> Enabling desktop services"
+systemctl --user daemon-reload
+systemctl --user enable swayosd.service
+
+echo "==> Configuring greetd"
+mkdir -p "$HOME/.cache/arch-post-install"
+tmp_greetd="$(mktemp "$HOME/.cache/arch-post-install/greetd-config.XXXXXX")"
+cat > "$tmp_greetd" <<'EOF'
+[terminal]
+vt = 1
+
+[default_session]
+command = "tuigreet --time --remember --asterisks --greeting 'Welcome' --cmd start-hyprland"
+user = "greeter"
+EOF
+
+if sudo test -f /etc/greetd/config.toml && sudo cmp -s "$tmp_greetd" /etc/greetd/config.toml; then
+  rm -f "$tmp_greetd"
+else
+  sudo install -Dm644 "$tmp_greetd" /etc/greetd/config.toml
+  rm -f "$tmp_greetd"
+  CONFIG_CHANGED=true
+fi
+
+echo "==> Enabling NetworkManager"
+sudo systemctl enable NetworkManager.service
+
+echo "==> Enabling greetd"
+active_dm=false
+for dm in display-manager.service gdm.service sddm.service lightdm.service ly.service emptty.service; do
+  if systemctl is-enabled --quiet "$dm" 2>/dev/null; then
+    active_dm=true
+    echo "WARNING: $dm is already enabled; leaving greetd disabled to avoid conflicting login managers."
+  fi
+done
+
+if [[ "$active_dm" == false ]]; then
+  sudo systemctl enable greetd.service
+else
+  echo "Install complete, but greetd was not enabled. Disable the existing display manager first, then run:"
+  echo "  sudo systemctl enable greetd.service"
+fi
+
+echo "==> Updating dotfiles Git repository"
+DOTS="$HOME/.dotfiles"
+mkdir -p "$DOTS/config"
+
+for d in hypr swayosd swappy foot waybar yazi swaync gtk-3.0 gtk-4.0 qt5ct qt6ct environment.d; do
+  if [[ -d "$HOME/.config/$d" ]]; then
+    mkdir -p "$DOTS/config/$d"
+    rsync -a --delete "$HOME/.config/$d/" "$DOTS/config/$d/"
+  fi
+done
+
+cd "$DOTS"
+git add .
+if ! git diff --cached --quiet; then
+  if git config user.name >/dev/null 2>&1 && git config user.email >/dev/null 2>&1; then
+    git commit -m "Add desktop configuration"
+  else
+    echo "WARNING: Git identity is not configured for ~/.dotfiles; leaving the changes staged."
+    echo 'Configure it later with:'
+    echo '  git -C ~/.dotfiles config user.name "Your Name"'
+    echo '  git -C ~/.dotfiles config user.email "you@example.com"'
+  fi
+fi
+
+echo "==> Terminal workflow"
+write_if_changed "$HOME/.config/shell/arch-desktop.sh" <<'EOF'
+# Arch desktop helpers
+alias ls='eza --group-directories-first'
+alias ll='eza -lah --group-directories-first'
+alias cat='bat --paging=never'
+alias grep='rg'
+alias find='fd'
+alias top='btop'
+alias lg='lazygit'
+if command -v zoxide >/dev/null 2>&1; then
+  eval "$(zoxide init bash)"
+fi
+EOF
+
+if [[ -f "$HOME/.bashrc" ]] && ! grep -qF 'source "$HOME/.config/shell/arch-desktop.sh"' "$HOME/.bashrc"; then
+  printf '\n# Arch desktop helpers\nsource "$HOME/.config/shell/arch-desktop.sh"\n' >> "$HOME/.bashrc"
+  CONFIG_CHANGED=true
+fi
+echo "==> Verification"
+for cmd in hyprland foot thunar yazi zathura telegram-desktop brave hyprsunset brightnessctl fuzzel swappy swayosd hypridle hyprlock nmcli tuigreet git; do
+  if command -v "$cmd" >/dev/null 2>&1; then
+    printf '[OK] %s\n' "$cmd"
+  else
+    printf '[WARN] %s is missing\n' "$cmd"
+  fi
+done
+
+if [[ "$CONFIG_CHANGED" == true ]]; then
+  fc-cache -f >/dev/null 2>&1 || true
+  update-desktop-database "$HOME/.local/share/applications" >/dev/null 2>&1 || true
+fi
+
+if [[ "$SYSTEM_CHANGED" == true || "$CONFIG_CHANGED" == true ]]; then
+  sudo snapper -c root create --description "desktop installation complete"
+  sudo snapper -c home create --description "desktop installation complete"
+else
+  echo "==> No system/config changes detected; skipping cache refresh and Snapper snapshots."
+fi
+
+echo
+echo "==> Desktop stage complete."
+echo
+echo "Hyprland baseline:"
+echo "  ~/.config/hypr/hyprland.lua"
+echo "  ~/.config/hypr/hyprsunset.conf"
+echo "  ~/.config/foot/foot.ini"
+echo "  ~/.config/yazi/yazi.toml"
+echo
+echo
+echo "Reboot before judging the final desktop behavior."
+\n⚙  Disconnect Wi-Fi'
+menu+=
+write_if_changed "$HOME/.local/bin/dev-menu" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+choice="$(printf '%s\n' \
+  'New Rust project' \
+  'New Go project' \
+  'New Python project' \
+  'New TypeScript project' \
+  'Git status' \
+  'LazyGit' \
+  'Btop' \
+  | fuzzel --dmenu --prompt='Dev ❯ ')
+
+case "$choice" in
+  'New Rust project') read -rp 'Project name: ' name; [[ -n "$name" ]] && cargo new "$name" && exec foot -D "$PWD/$name" ;;
+  'New Go project') read -rp 'Project name: ' name; [[ -n "$name" ]] && mkdir -p "$name" && cd "$name" && go mod init "$name" && exec foot ;;
+  'New Python project') read -rp 'Project name: ' name; [[ -n "$name" ]] && mkdir -p "$name" && cd "$name" && python -m venv .venv && exec foot ;;
+  'New TypeScript project') read -rp 'Project name: ' name; [[ -n "$name" ]] && mkdir -p "$name" && cd "$name" && npm init -y && npm install -D typescript && exec foot ;;
+  'Git status') exec foot -e bash -lc 'git status; exec bash' ;;
+  'LazyGit') exec foot -e lazygit ;;
+  'Btop') exec foot -e btop ;;
+esac
+EOF
+chmod +x "$HOME/.local/bin/dev-menu"
+echo "==> Notion launchers"
+write_if_changed "$HOME/.local/share/applications/notion.desktop" <<'EOF'
+[Desktop Entry]
+Name=Notion
+Comment=Notion workspace
+Exec=brave --app=https://www.notion.so/
+Icon=brave
+Terminal=false
+Type=Application
+Categories=Office;Productivity;
+EOF
+
+write_if_changed "$HOME/.local/share/applications/notion-calendar.desktop" <<'EOF'
+[Desktop Entry]
+Name=Notion Calendar
+Comment=Notion Calendar
+Exec=brave --app=https://calendar.notion.so/
+Icon=brave
+Terminal=false
+Type=Application
+Categories=Office;Calendar;Productivity;
+EOF
+
+echo "==> Enabling SwayOSD user service"
+systemctl --user daemon-reload
+systemctl --user enable swayosd.service
+
+echo "==> Updating dotfiles Git repository"
+DOTS="$HOME/.dotfiles"
+mkdir -p "$DOTS/config"
+
+for d in hypr swayosd swappy foot waybar yazi swaync gtk-3.0 gtk-4.0 qt5ct qt6ct environment.d; do
+  if [[ -d "$HOME/.config/$d" ]]; then
+    mkdir -p "$DOTS/config/$d"
+    rsync -a --delete "$HOME/.config/$d/" "$DOTS/config/$d/"
+  fi
+done
+
+cd "$DOTS"
+git add .
+if ! git diff --cached --quiet; then
+  if git config user.name >/dev/null 2>&1 && git config user.email >/dev/null 2>&1; then
+    git commit -m "Add desktop configuration"
+  else
+    echo "WARNING: Git identity is not configured for ~/.dotfiles; leaving the changes staged."
+    echo 'Configure it later with:'
+    echo '  git -C ~/.dotfiles config user.name "Your Name"'
+    echo '  git -C ~/.dotfiles config user.email "you@example.com"'
+  fi
+fi
+
+echo "==> Terminal workflow"
+write_if_changed "$HOME/.config/shell/arch-desktop.sh" <<'EOF'
+# Arch desktop helpers
+alias ls='eza --group-directories-first'
+alias ll='eza -lah --group-directories-first'
+alias cat='bat --paging=never'
+alias grep='rg'
+alias find='fd'
+alias top='btop'
+alias lg='lazygit'
+if command -v zoxide >/dev/null 2>&1; then
+  eval "$(zoxide init bash)"
+fi
+EOF
+
+if [[ -f "$HOME/.bashrc" ]] && ! grep -qF 'source "$HOME/.config/shell/arch-desktop.sh"' "$HOME/.bashrc"; then
+  printf '\n# Arch desktop helpers\nsource "$HOME/.config/shell/arch-desktop.sh"\n' >> "$HOME/.bashrc"
+  CONFIG_CHANGED=true
+fi
+echo "==> Verification"
+for cmd in hyprland foot thunar yazi zathura telegram-desktop brave hyprsunset brightnessctl fuzzel swappy swayosd hypridle hyprlock git; do
+  if command -v "$cmd" >/dev/null 2>&1; then
+    printf '[OK] %s\n' "$cmd"
+  else
+    printf '[WARN] %s is missing\n' "$cmd"
+  fi
+done
+
+if [[ "$CONFIG_CHANGED" == true ]]; then
+  fc-cache -f >/dev/null 2>&1 || true
+  update-desktop-database "$HOME/.local/share/applications" >/dev/null 2>&1 || true
+fi
+
+if [[ "$SYSTEM_CHANGED" == true || "$CONFIG_CHANGED" == true ]]; then
+  sudo snapper -c root create --description "desktop installation complete"
+  sudo snapper -c home create --description "desktop installation complete"
+else
+  echo "==> No system/config changes detected; skipping cache refresh and Snapper snapshots."
+fi
+
+echo
+echo "==> Desktop stage complete."
+echo
+echo "Hyprland baseline:"
+echo "  ~/.config/hypr/hyprland.lua"
+echo "  ~/.config/hypr/hyprsunset.conf"
+echo "  ~/.config/foot/foot.ini"
+echo "  ~/.config/yazi/yazi.toml"
+echo
+echo
+echo "Reboot before judging the final desktop behavior."
+\n◉  Turn Wi-Fi off'
+
+choice="$(printf '%s\n' "$menu" | fuzzel --dmenu --prompt='Wi-Fi ❯ ')" || exit 0
+[[ -z "$choice" ]] && exit 0
+
+case "$choice" in
+  "⚙  Disconnect Wi-Fi")
+    nmcli device disconnect "$wifi_device" >/dev/null
+    ;;
+  "◉  Turn Wi-Fi off")
+    nmcli radio wifi off
+    ;;
+  *)
+    ssid="$(sed -E 's/^●  |^○  //' <<< "$choice" | sed -E 's/[[:space:]]+[0-9]+%[[:space:]]+.*$//')"
+    [[ -n "$ssid" ]] || exit 0
+
+    if nmcli -t -f NAME,TYPE connection show |
+      awk -F: -v ssid="$ssid" '$2 == "802-11-wireless" && $1 == ssid {found=1} END {exit !found}'; then
+      nmcli connection up id "$ssid" >/dev/null
+    else
+      foot -T "Wi-Fi password" -e bash -lc \
+        'printf "Connecting to %q\\n\\n" "$1"; nmcli --ask device wifi connect "$1"; printf "\\nPress Enter to close..."; read -r' \
+        bash "$ssid"
+    fi
+    ;;
+esac
+EOF
+[[ -x "$HOME/.local/bin/wifi-menu" ]] || chmod +x "$HOME/.local/bin/wifi-menu"
+
 echo "==> Developer menu"
 write_if_changed "$HOME/.local/bin/dev-menu" <<'EOF'
 #!/usr/bin/env bash
