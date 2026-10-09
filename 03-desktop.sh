@@ -74,7 +74,7 @@ install_pacman_if_missing \
   xdg-desktop-portal xdg-desktop-portal-hyprland xdg-desktop-portal-gtk polkit \
   waybar swaync wl-clipboard cliphist grim slurp swappy fuzzel \
   brightnessctl playerctl pavucontrol pamixer libnotify nwg-displays nwg-look \
-  networkmanager greetd greetd-tuigreet
+  networkmanager sddm
 
 echo "==> Terminal and file managers"
 install_pacman_if_missing \
@@ -1072,43 +1072,33 @@ echo "==> Enabling desktop services"
 systemctl --user daemon-reload
 systemctl --user enable swayosd.service
 
-echo "==> Configuring greetd"
-mkdir -p "$HOME/.cache/arch-post-install"
-tmp_greetd="$(mktemp "$HOME/.cache/arch-post-install/greetd-config.XXXXXX")"
-cat > "$tmp_greetd" <<'EOF'
-[terminal]
-vt = 1
-
-[default_session]
-command = "tuigreet --time --remember --asterisks --greeting 'Welcome' --cmd start-hyprland"
-user = "greeter"
-EOF
-
-if sudo test -f /etc/greetd/config.toml && sudo cmp -s "$tmp_greetd" /etc/greetd/config.toml; then
-  rm -f "$tmp_greetd"
-else
-  sudo install -Dm644 "$tmp_greetd" /etc/greetd/config.toml
-  rm -f "$tmp_greetd"
-  CONFIG_CHANGED=true
-fi
+echo "==> SDDM uses its packaged default configuration"
 
 echo "==> Enabling NetworkManager"
 sudo systemctl enable NetworkManager.service
 
-echo "==> Enabling greetd"
-active_dm=false
-for dm in display-manager.service gdm.service sddm.service lightdm.service ly.service emptty.service; do
-  if systemctl is-enabled --quiet "$dm" 2>/dev/null; then
-    active_dm=true
-    echo "WARNING: $dm is already enabled; leaving greetd disabled to avoid conflicting login managers."
+echo "==> Migrating display manager to SDDM"
+# Disable greetd for future boots, then enable SDDM. If enabling SDDM fails,
+# restore greetd so the machine is not left without an enabled login manager.
+if systemctl is-enabled --quiet greetd.service 2>/dev/null; then
+  sudo systemctl disable greetd.service
+fi
+
+if ! sudo systemctl enable sddm.service; then
+  echo "ERROR: Could not enable SDDM; attempting to restore greetd." >&2
+  sudo systemctl enable greetd.service || true
+  exit 1
+fi
+
+# Remove the old manager packages only after SDDM is enabled.
+old_dm_packages=()
+for pkg in greetd greetd-tuigreet; do
+  if pacman -Q "$pkg" >/dev/null 2>&1; then
+    old_dm_packages+=("$pkg")
   fi
 done
-
-if [[ "$active_dm" == false ]]; then
-  sudo systemctl enable greetd.service
-else
-  echo "Install complete, but greetd was not enabled. Disable the existing display manager first, then run:"
-  echo "  sudo systemctl enable greetd.service"
+if (("${#old_dm_packages[@]}")); then
+  sudo pacman -R --noconfirm "${old_dm_packages[@]}"
 fi
 
 echo "==> Updating dotfiles Git repository"
@@ -1155,7 +1145,7 @@ if [[ -f "$HOME/.bashrc" ]] && ! grep -qF 'source "$HOME/.config/shell/arch-desk
   CONFIG_CHANGED=true
 fi
 echo "==> Verification"
-for cmd in hyprland foot thunar yazi zathura telegram-desktop brave hyprsunset brightnessctl fuzzel swappy swayosd hypridle hyprlock nmcli tuigreet git; do
+for cmd in hyprland foot thunar yazi zathura telegram-desktop brave hyprsunset brightnessctl fuzzel swappy swayosd hypridle hyprlock nmcli sddm git; do
   if command -v "$cmd" >/dev/null 2>&1; then
     printf '[OK] %s\n' "$cmd"
   else
