@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Start/recreate the pinned-app bar before starting its hover controller.
+"$HOME/.local/bin/taskbar-manager" refresh
+
+# User services do not automatically inherit the current Hyprland instance.
+systemctl --user import-environment \
+  WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE HYPRLAND_INSTANCE_SIGNATURE
+dbus-update-activation-environment --systemd \
+  WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE HYPRLAND_INSTANCE_SIGNATURE
+
+systemctl --user restart taskbar-hover.service

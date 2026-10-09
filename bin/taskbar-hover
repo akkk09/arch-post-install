@@ -10,6 +10,7 @@ import time
 from pathlib import Path
 
 PID_FILE = Path.home() / ".local/state/taskbar/waybar.pid"
+BAR_CONFIG = Path.home() / ".config/waybar/taskbar.jsonc"
 POLL_SECONDS = 0.10
 REVEAL_EDGE = 3
 BAR_HEIGHT = 42
@@ -34,6 +35,11 @@ def hypr_json(*args: str):
 def taskbar_pid() -> int | None:
     try:
         pid = int(PID_FILE.read_text().strip())
+        raw = Path(f"/proc/{pid}/cmdline").read_bytes()
+        args = [os.fsdecode(arg) for arg in raw.split(bytes([0])) if arg]
+        # A stale/reused PID must never receive Waybar's visibility signal.
+        if not args or Path(args[0]).name != "waybar" or str(BAR_CONFIG) not in args:
+            return None
         os.kill(pid, 0)
         return pid
     except (OSError, ValueError):

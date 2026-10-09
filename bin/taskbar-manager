@@ -6,6 +6,8 @@ import configparser
 import json
 import os
 import shlex
+import signal
+import time
 import shutil
 import subprocess
 import sys
@@ -157,24 +159,65 @@ def refresh() -> None:
     restart_bar()
 
 
+def is_taskbar_waybar(pid: int) -> bool:
+    """Match only our pinned-app Waybar, never the regular desktop bar."""
+    try:
+        raw = Path(f"/proc/{pid}/cmdline").read_bytes()
+        args = [os.fsdecode(arg) for arg in raw.split(bytes([0])) if arg]
+    except OSError:
+        return False
+    return (
+        bool(args)
+        and Path(args[0]).name == "waybar"
+        and str(BAR_CONFIG) in args
+        and str(BAR_STYLE) in args
+    )
+
+
+def taskbar_pids() -> list[int]:
+    pids: list[int] = []
+    try:
+        entries = Path("/proc").iterdir()
+        for entry in entries:
+            if entry.name.isdigit() and is_taskbar_waybar(int(entry.name)):
+                pids.append(int(entry.name))
+    except OSError:
+        pass
+    return pids
+
+
 def restart_bar() -> None:
     state_dir = HOME / ".local/state/taskbar"
     state_dir.mkdir(parents=True, exist_ok=True)
     pid_file = state_dir / "waybar.pid"
-    try:
-        old_pid = int(pid_file.read_text().strip())
-        cmdline = Path(f"/proc/{old_pid}/cmdline").read_bytes().replace(b"\\0", b" ")
-        if b"waybar" in cmdline and b"taskbar.jsonc" in cmdline:
-            os.kill(old_pid, 15)
-    except (OSError, ValueError):
-        pass
+
+    # The PID file can only remember one process. Find all stale taskbar
+    # instances by their exact config/style arguments, excluding top Waybar.
+    for old_pid in taskbar_pids():
+        try:
+            os.kill(old_pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+
+    deadline = time.monotonic() + 2.0
+    while time.monotonic() < deadline and taskbar_pids():
+        time.sleep(0.05)
+
+    # Waybar should exit promptly on SIGTERM; only force-kill matching
+    # taskbar instances that ignored it.
+    for old_pid in taskbar_pids():
+        try:
+            os.kill(old_pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+
     process = subprocess.Popen(
         ["waybar", "-c", str(BAR_CONFIG), "-s", str(BAR_STYLE)],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         start_new_session=True,
     )
-    pid_file.write_text(f"{process.pid}\n")
+    pid_file.write_text(f"{process.pid}" + chr(10))
 
 
 def add_app() -> None:
