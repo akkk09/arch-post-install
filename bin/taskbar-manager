@@ -163,7 +163,7 @@ def is_taskbar_waybar(pid: int) -> bool:
     """Match only our pinned-app Waybar, never the regular desktop bar."""
     try:
         raw = Path(f"/proc/{pid}/cmdline").read_bytes()
-        args = [os.fsdecode(arg) for arg in raw.split(b"\\0") if arg]
+        args = [os.fsdecode(arg) for arg in raw.split(bytes([0])) if arg]
     except OSError:
         return False
     return (
@@ -217,7 +217,7 @@ def restart_bar() -> None:
         stderr=subprocess.DEVNULL,
         start_new_session=True,
     )
-    pid_file.write_text(f"{process.pid}\\n")
+    pid_file.write_text(f"{process.pid}" + chr(10))
 
 
 def add_app() -> None:

@@ -36,7 +36,7 @@ def taskbar_pid() -> int | None:
     try:
         pid = int(PID_FILE.read_text().strip())
         raw = Path(f"/proc/{pid}/cmdline").read_bytes()
-        args = [os.fsdecode(arg) for arg in raw.split(b"\\0") if arg]
+        args = [os.fsdecode(arg) for arg in raw.split(bytes([0])) if arg]
         # A stale/reused PID must never receive Waybar's visibility signal.
         if not args or Path(args[0]).name != "waybar" or str(BAR_CONFIG) not in args:
             return None
