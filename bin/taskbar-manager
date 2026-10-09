@@ -1,0 +1,214 @@
+#!/usr/bin/env python3
+"""Interactive Waybar pinned-app manager. Uses fuzzel for menus."""
+from __future__ import annotations
+
+import configparser
+import json
+import os
+import shlex
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+from urllib.parse import urlparse
+
+HOME = Path.home()
+CONFIG_DIR = HOME / ".config" / "waybar"
+APPS_FILE = CONFIG_DIR / "taskbar-apps.json"
+BAR_CONFIG = CONFIG_DIR / "taskbar.jsonc"
+BAR_STYLE = CONFIG_DIR / "taskbar.css"
+
+DEFAULT_APPS = [
+    {"name": "Brave", "launch": ["brave"]},
+    {"name": "Obsidian", "launch": ["obsidian"]},
+    {"name": "Notion", "launch": ["brave", "--app=https://www.notion.so/"]},
+    {"name": "Calendar", "launch": ["brave", "--app=https://calendar.notion.so/"]},
+    {"name": "Chess.com", "launch": ["brave", "--app=https://www.chess.com/"]},
+    {"name": "itch.io", "launch": ["brave", "--app=https://itch.io/"]},
+    {"name": "Steam", "launch": ["steam"]},
+]
+
+
+def notify(title: str, body: str) -> None:
+    if shutil.which("notify-send"):
+        subprocess.run(["notify-send", title, body], check=False)
+
+
+def choose(prompt: str, options: list[str]) -> str:
+    if not options or not shutil.which("fuzzel"):
+        notify("Taskbar", "Install fuzzel to use the taskbar menu.")
+        return ""
+    result = subprocess.run(
+        ["fuzzel", "--dmenu", "--prompt", prompt],
+        input="\n".join(options) + "\n",
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    return result.stdout.strip() if result.returncode == 0 else ""
+
+
+def load_apps() -> list[dict]:
+    if not APPS_FILE.exists():
+        return [dict(app) for app in DEFAULT_APPS]
+    try:
+        data = json.loads(APPS_FILE.read_text())
+        return [app for app in data if isinstance(app, dict) and app.get("name")]
+    except (OSError, json.JSONDecodeError):
+        notify("Taskbar", f"Could not read {APPS_FILE}; restoring defaults.")
+        return [dict(app) for app in DEFAULT_APPS]
+
+
+def save_apps(apps: list[dict]) -> None:
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    APPS_FILE.write_text(json.dumps(apps, indent=2, ensure_ascii=False) + "\n")
+
+
+def desktop_apps() -> list[tuple[str, str]]:
+    roots = [HOME / ".local/share/applications", Path("/usr/local/share/applications"), Path("/usr/share/applications")]
+    found: dict[str, str] = {}
+    for root in roots:
+        if not root.exists():
+            continue
+        for path in root.rglob("*.desktop"):
+            try:
+                parser = configparser.ConfigParser(interpolation=None, strict=False)
+                parser.read(path, encoding="utf-8")
+                entry = parser["Desktop Entry"]
+                if entry.get("Type", "Application") != "Application":
+                    continue
+                if entry.getboolean("Hidden", fallback=False) or entry.getboolean("NoDisplay", fallback=False):
+                    continue
+                name = entry.get("Name", "").strip()
+                if not name:
+                    continue
+                desktop_id = path.relative_to(root).as_posix().replace("/", "-")
+                if desktop_id not in found:
+                    found[desktop_id] = name
+            except (OSError, KeyError, ValueError, configparser.Error):
+                continue
+    return sorted(((name, desktop_id) for desktop_id, name in found.items()), key=lambda item: item[0].casefold())
+
+
+def refresh() -> None:
+    apps = load_apps()
+    modules = [f"custom/pin{i}" for i in range(len(apps))] + ["custom/manage"]
+    config: dict = {
+        "layer": "bottom",
+        "position": "bottom",
+        "height": 36,
+        "spacing": 2,
+        "modules-center": modules,
+    }
+    for index, app in enumerate(apps):
+        name = str(app["name"])
+        if app.get("desktop_id"):
+            desktop_id = str(app["desktop_id"])
+            desktop_id = desktop_id.removesuffix(".desktop")
+            launch = ["gtk-launch", desktop_id]
+        else:
+            launch = app.get("launch", [])
+        if not isinstance(launch, list) or not launch or not all(isinstance(part, str) for part in launch):
+            continue
+        config[f"custom/pin{index}"] = {
+            "exec": "printf %s " + shlex.quote(name),
+            "format": "{}",
+            "tooltip": True,
+            "tooltip-format": name,
+            "on-click": shlex.join(launch),
+        }
+    config["custom/manage"] = {
+        "exec": "printf '＋'",
+        "format": "{}",
+        "tooltip": True,
+        "tooltip-format": "Customize pinned apps",
+        "on-click": str(Path.home() / ".local/bin/taskbar-manager"),
+    }
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    BAR_CONFIG.write_text(json.dumps(config, indent=2, ensure_ascii=False) + "\n")
+    restart_bar()
+
+
+def restart_bar() -> None:
+    # Target only the taskbar instance, leaving the top system Waybar untouched.
+    subprocess.run(
+        ["pkill", "-f", r"waybar -c .*waybar/taskbar\.jsonc"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    subprocess.Popen(
+        ["waybar", "-c", str(BAR_CONFIG), "-s", str(BAR_STYLE)],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+    )
+
+
+def add_app() -> None:
+    apps = load_apps()
+    existing = {app.get("desktop_id") for app in apps}
+    choices = [(name, desktop_id) for name, desktop_id in desktop_apps() if desktop_id not in existing]
+    selected = choose("Add app ❯ ", [f"{name}  [{desktop_id}]" for name, desktop_id in choices])
+    if not selected:
+        return
+    desktop_id = selected.rsplit("[", 1)[-1].rstrip("]")
+    match = next(((name, ident) for name, ident in choices if ident == desktop_id), None)
+    if match:
+        apps.append({"name": match[0], "desktop_id": match[1]})
+        save_apps(apps)
+        refresh()
+
+
+def remove_app() -> None:
+    apps = load_apps()
+    if not apps:
+        return
+    selected = choose("Remove app ❯ ", [str(app["name"]) for app in apps])
+    if not selected:
+        return
+    for index, app in enumerate(apps):
+        if str(app["name"]) == selected:
+            apps.pop(index)
+            save_apps(apps)
+            refresh()
+            return
+
+
+def add_web_app() -> None:
+    print("Add a website to the taskbar")
+    name = input("Button name: ").strip()
+    url = input("URL (https://...): ").strip()
+    parsed = urlparse(url)
+    if not name or parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        print("Name and a valid http(s) URL are required.")
+        input("Press Enter to close...")
+        return
+    apps = load_apps()
+    apps.append({"name": name, "launch": ["brave", f"--app={url}"]})
+    save_apps(apps)
+    refresh()
+    print(f"Added {name}.")
+    input("Press Enter to close...")
+
+
+def main() -> None:
+    if len(sys.argv) > 1 and sys.argv[1] == "add-web":
+        add_web_app()
+        return
+    while True:
+        action = choose("Taskbar ❯ ", ["Add installed app", "Add website / web app", "Remove pinned app", "Quit"])
+        if action == "Add installed app":
+            add_app()
+        elif action == "Add website / web app":
+            subprocess.Popen(["foot", "-T", "Add taskbar web app", "-e", str(Path.home() / ".local/bin/taskbar-manager"), "add-web"])
+            return
+        elif action == "Remove pinned app":
+            remove_app()
+        else:
+            return
+
+
+if __name__ == "__main__":
+    main()
