@@ -292,7 +292,8 @@ hl.monitor({
 -- Start desktop helpers once per Hyprland session.
 hl.on("hyprland.start", function()
     hl.exec_cmd("waybar")
-    hl.exec_cmd("waybar -c $HOME/.config/waybar/taskbar.jsonc -s $HOME/.config/waybar/taskbar.css")
+    hl.exec_cmd("taskbar-manager refresh")
+    hl.exec_cmd("taskbar-hover")
     hl.exec_cmd("swaync")
     hl.exec_cmd("hyprsunset")
     hl.exec_cmd("hypridle")
@@ -645,6 +646,7 @@ EOF
 # Compact bottom taskbar with an interactive app manager.
 # The manager creates the Waybar config and matching CSS, and can add/remove apps.
 install -Dm755 "$SCRIPT_DIR/bin/taskbar-manager" "$HOME/.local/bin/taskbar-manager"
+install -Dm755 "$SCRIPT_DIR/bin/taskbar-hover" "$HOME/.local/bin/taskbar-hover"
 "$HOME/.local/bin/taskbar-manager" refresh
 
 write_if_changed "$HOME/.config/foot/foot.ini" <<'EOF'

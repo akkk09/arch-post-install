@@ -95,10 +95,11 @@ def refresh() -> None:
     apps = load_apps()
     modules = [f"custom/pin{i}" for i in range(len(apps))] + ["custom/manage"]
     config: dict = {
-        "layer": "bottom",
+        "layer": "overlay",
         "position": "bottom",
-        "height": 36,
-        "spacing": 2,
+        "height": 42,
+        "exclusive": False,
+        "spacing": 0,
         "modules-center": modules,
     }
     for index, app in enumerate(apps):
@@ -131,10 +132,10 @@ def refresh() -> None:
     BAR_STYLE.write_text(
         '* {\n'
         '    font-family: "JetBrainsMono Nerd Font";\n'
-        '    font-size: 11px;\n'
+        '    font-size: 13px;\n'
         '}\n'
         'window#waybar {\n'
-        '    background: rgba(20, 20, 20, 0.94);\n'
+        '    background: rgba(20, 20, 20, 0.96);\n'
         '    color: #eeeeee;\n'
         '}\n'
         '.modules-center {\n'
@@ -144,8 +145,8 @@ def refresh() -> None:
         '    border-radius: 7px;\n'
         '}\n'
         f'{selectors} {{\n'
-        '    padding: 0 5px;\n'
-        '    margin: 0 1px;\n'
+        '    padding: 4px 8px;\n'
+        '    margin: 0;\n'
         '    border-radius: 5px;\n'
         '}\n'
         f'{selectors}:hover {{\n'
@@ -157,19 +158,23 @@ def refresh() -> None:
 
 
 def restart_bar() -> None:
-    # Target only the taskbar instance, leaving the top system Waybar untouched.
-    subprocess.run(
-        ["pkill", "-f", r"waybar -c .*waybar/taskbar\.jsonc"],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        check=False,
-    )
-    subprocess.Popen(
+    state_dir = HOME / ".local/state/taskbar"
+    state_dir.mkdir(parents=True, exist_ok=True)
+    pid_file = state_dir / "waybar.pid"
+    try:
+        old_pid = int(pid_file.read_text().strip())
+        cmdline = Path(f"/proc/{old_pid}/cmdline").read_bytes().replace(b"\\0", b" ")
+        if b"waybar" in cmdline and b"taskbar.jsonc" in cmdline:
+            os.kill(old_pid, 15)
+    except (OSError, ValueError):
+        pass
+    process = subprocess.Popen(
         ["waybar", "-c", str(BAR_CONFIG), "-s", str(BAR_STYLE)],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         start_new_session=True,
     )
+    pid_file.write_text(f"{process.pid}\n")
 
 
 def add_app() -> None:
