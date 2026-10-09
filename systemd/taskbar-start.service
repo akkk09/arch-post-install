@@ -1,0 +1,9 @@
+[Unit]
+Description=Start pinned-app taskbar and hover controller
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/taskbar-start
+RemainAfterExit=yes
