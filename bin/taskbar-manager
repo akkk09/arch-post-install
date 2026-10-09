@@ -127,6 +127,32 @@ def refresh() -> None:
     }
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     BAR_CONFIG.write_text(json.dumps(config, indent=2, ensure_ascii=False) + "\n")
+    selectors = ",\n".join(["#custom-manage"] + [f"#custom-pin{i}" for i in range(len(apps))])
+    BAR_STYLE.write_text(
+        '* {\\n'
+        '    font-family: "JetBrainsMono Nerd Font";\\n'
+        '    font-size: 11px;\\n'
+        '}\\n'
+        'window#waybar {\\n'
+        '    background: rgba(20, 20, 20, 0.94);\\n'
+        '    color: #eeeeee;\\n'
+        '}\\n'
+        '.modules-center {\\n'
+        '    margin: 0;\\n'
+        '    padding: 0 3px;\\n'
+        '    background: rgba(30, 30, 30, 0.98);\\n'
+        '    border-radius: 7px;\\n'
+        '}\\n'
+        f'{selectors} {{\\n'
+        '    padding: 0 5px;\\n'
+        '    margin: 0 1px;\\n'
+        '    border-radius: 5px;\\n'
+        '}\\n'
+        f'{selectors}:hover {{\\n'
+        '    background: rgba(255, 255, 255, 0.14);\\n'
+        '}\\n',
+        encoding="utf-8",
+    )
     restart_bar()
 
 
