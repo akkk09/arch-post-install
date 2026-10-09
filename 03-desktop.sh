@@ -932,7 +932,7 @@ write_if_changed "$HOME/.local/bin/nightlight" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
-choice="$(printf '%s\\n' \
+choice="$(printf '%s\n' \
   'Enable nightlight (4200 K)' \
   'Disable nightlight' \
   | fuzzel --dmenu --prompt='Nightlight ❯ ')" || exit 0
