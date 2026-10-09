@@ -292,13 +292,12 @@ hl.monitor({
 -- Start desktop helpers once per Hyprland session.
 hl.on("hyprland.start", function()
     hl.exec_cmd("waybar")
-    hl.exec_cmd("taskbar-manager refresh")
-    hl.exec_cmd("taskbar-hover")
+    -- Run taskbar startup and environment import in order. The hover helper is
+    -- managed by systemd so it survives command-wrapper behavior and restarts.
+    hl.exec_cmd("$HOME/.local/bin/taskbar-manager refresh && systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE HYPRLAND_INSTANCE_SIGNATURE && dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE HYPRLAND_INSTANCE_SIGNATURE && systemctl --user restart taskbar-hover.service")
     hl.exec_cmd("swaync")
     hl.exec_cmd("hyprsunset")
     hl.exec_cmd("hypridle")
-    hl.exec_cmd("systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE")
-    hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE")
     hl.exec_cmd("systemctl --user start swayosd.service")
     hl.exec_cmd("wl-paste --type text --watch cliphist store")
     hl.exec_cmd("wl-paste --type image --watch cliphist store")
@@ -647,6 +646,7 @@ EOF
 # The manager creates the Waybar config and matching CSS, and can add/remove apps.
 install -Dm755 "$SCRIPT_DIR/bin/taskbar-manager" "$HOME/.local/bin/taskbar-manager"
 install -Dm755 "$SCRIPT_DIR/bin/taskbar-hover" "$HOME/.local/bin/taskbar-hover"
+install -Dm644 "$SCRIPT_DIR/systemd/taskbar-hover.service" "$HOME/.config/systemd/user/taskbar-hover.service"
 "$HOME/.local/bin/taskbar-manager" refresh
 
 write_if_changed "$HOME/.config/foot/foot.ini" <<'EOF'
