@@ -163,7 +163,9 @@ def restart_bar() -> None:
     pid_file = state_dir / "waybar.pid"
     try:
         old_pid = int(pid_file.read_text().strip())
-        os.kill(old_pid, 15)
+        cmdline = Path(f"/proc/{old_pid}/cmdline").read_bytes().replace(b"\\0", b" ")
+        if b"waybar" in cmdline and b"taskbar.jsonc" in cmdline:
+            os.kill(old_pid, 15)
     except (OSError, ValueError):
         pass
     process = subprocess.Popen(
