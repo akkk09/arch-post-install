@@ -642,80 +642,14 @@ window#waybar {
 }
 EOF
 
-# A small bottom taskbar for pinned apps, web apps, and browser games.
-# Apps that are not installed show a desktop notification instead of failing silently.
-write_if_changed "$HOME/.config/waybar/taskbar.jsonc" <<'EOF'
-{
-    "layer": "bottom",
-    "position": "bottom",
-    "height": 44,
-    "spacing": 8,
-    "modules-center": [
-        "custom/brave",
-        "custom/obsidian",
-        "custom/notion",
-        "custom/notion-calendar",
-        "custom/chess",
-        "custom/itch",
-        "custom/steam"
-    ],
-
-    "custom/brave": {
-        "exec": "printf '󰖟  Brave'",
-        "format": "{}",
-        "tooltip": true,
-        "tooltip-format": "Open Brave",
-        "on-click": "brave"
-    },
-    "custom/obsidian": {
-        "exec": "printf '󰠮  Obsidian'",
-        "format": "{}",
-        "tooltip": true,
-        "tooltip-format": "Open Obsidian (if installed)",
-        "on-click": "if command -v obsidian >/dev/null 2>&1; then obsidian; else notify-send 'Obsidian is not installed' 'Install it first, then click this button again.'; fi"
-    },
-    "custom/notion": {
-        "exec": "printf '󰈙  Notion'",
-        "format": "{}",
-        "tooltip": true,
-        "tooltip-format": "Open Notion as a web app",
-        "on-click": "brave --app=https://www.notion.so/"
-    },
-    "custom/notion-calendar": {
-        "exec": "printf '󰃭  Calendar'",
-        "format": "{}",
-        "tooltip": true,
-        "tooltip-format": "Open Notion Calendar",
-        "on-click": "brave --app=https://calendar.notion.so/"
-    },
-    "custom/chess": {
-        "exec": "printf '♟  Chess.com'",
-        "format": "{}",
-        "tooltip": true,
-        "tooltip-format": "Open Chess.com",
-        "on-click": "brave --app=https://www.chess.com/"
-    },
-    "custom/itch": {
-        "exec": "printf '󰊗  itch.io'",
-        "format": "{}",
-        "tooltip": true,
-        "tooltip-format": "Open itch.io games",
-        "on-click": "brave --app=https://itch.io/"
-    },
-    "custom/steam": {
-        "exec": "printf '󰓓  Steam'",
-        "format": "{}",
-        "tooltip": true,
-        "tooltip-format": "Launch Steam (if installed)",
-        "on-click": "if command -v steam >/dev/null 2>&1; then steam; else notify-send 'Steam is not installed' 'Install Steam first, then click this button again.'; fi"
-    }
-}
-EOF
+# Compact bottom taskbar with an interactive app manager.
+# The manager can add/remove installed desktop apps and custom Brave web apps.
+install -Dm755 "$SCRIPT_DIR/bin/taskbar-manager" "$HOME/.local/bin/taskbar-manager"
 
 write_if_changed "$HOME/.config/waybar/taskbar.css" <<'EOF'
 * {
     font-family: "JetBrainsMono Nerd Font";
-    font-size: 12px;
+    font-size: 11px;
 }
 
 window#waybar {
@@ -724,34 +658,26 @@ window#waybar {
 }
 
 .modules-center {
-    margin: 4px 0;
-    padding: 2px 8px;
-    background: rgba(38, 38, 38, 0.98);
-    border-radius: 8px;
+    margin: 0;
+    padding: 0 4px;
+    background: rgba(30, 30, 30, 0.98);
+    border-radius: 7px;
 }
 
-#custom-brave,
-#custom-obsidian,
-#custom-notion,
-#custom-notion-calendar,
-#custom-chess,
-#custom-itch,
-#custom-steam {
-    padding: 0 10px;
-    margin: 2px 1px;
-    border-radius: 6px;
+#custom-manage,
+[id^="custom-pin"] {
+    padding: 0 6px;
+    margin: 0 1px;
+    border-radius: 5px;
 }
 
-#custom-brave:hover,
-#custom-obsidian:hover,
-#custom-notion:hover,
-#custom-notion-calendar:hover,
-#custom-chess:hover,
-#custom-itch:hover,
-#custom-steam:hover {
+#custom-manage:hover,
+[id^="custom-pin"]:hover {
     background: rgba(255, 255, 255, 0.14);
 }
 EOF
+
+"$HOME/.local/bin/taskbar-manager" refresh
 
 write_if_changed "$HOME/.config/foot/foot.ini" <<'EOF'
 [main]
