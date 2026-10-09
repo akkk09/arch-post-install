@@ -12,9 +12,9 @@ from pathlib import Path
 PID_FILE = Path.home() / ".local/state/taskbar/waybar.pid"
 BAR_CONFIG = Path.home() / ".config/waybar/taskbar.jsonc"
 POLL_SECONDS = 0.10
-REVEAL_EDGE = 3
 BAR_HEIGHT = 42
 HIDE_MARGIN = 3
+EDGE_ZONE = BAR_HEIGHT + HIDE_MARGIN
 
 
 def hypr_json(*args: str):
@@ -46,7 +46,8 @@ def taskbar_pid() -> int | None:
         return None
 
 
-def cursor_at_bottom(cursor: dict, monitors: list[dict], visible: bool) -> bool:
+def cursor_at_bottom(cursor: dict, monitors: list[dict]) -> bool:
+    """Use the same edge zone to reveal a hidden bar and retain a visible one."""
     x, y = float(cursor["x"]), float(cursor["y"])
     for monitor in monitors:
         scale = max(float(monitor.get("scale", 1)), 0.1)
@@ -55,10 +56,8 @@ def cursor_at_bottom(cursor: dict, monitors: list[dict], visible: bool) -> bool:
         width = float(monitor.get("width", 0)) / scale
         height = float(monitor.get("height", 0)) / scale
         bottom = top + height
-        if left <= x <= left + width:
-            threshold = BAR_HEIGHT + HIDE_MARGIN if visible else REVEAL_EDGE
-            if y >= bottom - threshold:
-                return True
+        if left <= x <= left + width and y >= bottom - EDGE_ZONE:
+            return True
     return False
 
 
@@ -76,7 +75,7 @@ def main() -> None:
         cursor = hypr_json("cursorpos")
         monitors = hypr_json("monitors")
         if isinstance(cursor, dict) and isinstance(monitors, list):
-            should_show = cursor_at_bottom(cursor, monitors, visible)
+            should_show = cursor_at_bottom(cursor, monitors)
             if should_show != visible:
                 try:
                     os.kill(pid, signal.SIGUSR1)  # Waybar toggles visibility on SIGUSR1
