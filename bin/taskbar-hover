@@ -1,0 +1,84 @@
+#!/usr/bin/env python3
+"""Reveal the pinned-app Waybar when the pointer reaches the bottom screen edge."""
+from __future__ import annotations
+
+import json
+import os
+import signal
+import subprocess
+import time
+from pathlib import Path
+
+PID_FILE = Path.home() / ".local/state/taskbar/waybar.pid"
+POLL_SECONDS = 0.10
+REVEAL_EDGE = 3
+BAR_HEIGHT = 42
+HIDE_MARGIN = 3
+
+
+def hypr_json(*args: str):
+    try:
+        result = subprocess.run(
+            ["hyprctl", "-j", *args],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            timeout=1,
+            check=True,
+        )
+        return json.loads(result.stdout)
+    except (OSError, subprocess.SubprocessError, json.JSONDecodeError):
+        return None
+
+
+def taskbar_pid() -> int | None:
+    try:
+        pid = int(PID_FILE.read_text().strip())
+        os.kill(pid, 0)
+        return pid
+    except (OSError, ValueError):
+        return None
+
+
+def cursor_at_bottom(cursor: dict, monitors: list[dict], visible: bool) -> bool:
+    x, y = float(cursor["x"]), float(cursor["y"])
+    for monitor in monitors:
+        scale = max(float(monitor.get("scale", 1)), 0.1)
+        left = float(monitor.get("x", 0))
+        top = float(monitor.get("y", 0))
+        width = float(monitor.get("width", 0)) / scale
+        height = float(monitor.get("height", 0)) / scale
+        bottom = top + height
+        if left <= x <= left + width:
+            threshold = BAR_HEIGHT + HIDE_MARGIN if visible else REVEAL_EDGE
+            if y >= bottom - threshold:
+                return True
+    return False
+
+
+def main() -> None:
+    current_pid: int | None = None
+    visible = True
+    while True:
+        pid = taskbar_pid()
+        if pid is None:
+            time.sleep(0.5)
+            continue
+        if pid != current_pid:
+            current_pid = pid
+            visible = True  # a newly started Waybar is visible by default
+        cursor = hypr_json("cursorpos")
+        monitors = hypr_json("monitors")
+        if isinstance(cursor, dict) and isinstance(monitors, list):
+            should_show = cursor_at_bottom(cursor, monitors, visible)
+            if should_show != visible:
+                try:
+                    os.kill(pid, signal.SIGUSR1)  # Waybar toggles visibility on SIGUSR1
+                    visible = should_show
+                except ProcessLookupError:
+                    current_pid = None
+        time.sleep(POLL_SECONDS)
+
+
+if __name__ == "__main__":
+    main()
