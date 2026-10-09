@@ -661,43 +661,50 @@ write_if_changed "$HOME/.config/waybar/taskbar.jsonc" <<'EOF'
     ],
 
     "custom/brave": {
-        "format": "󰖟  Brave",
+        "exec": "printf '󰖟  Brave'",
+        "format": "{}",
         "tooltip": true,
         "tooltip-format": "Open Brave",
         "on-click": "brave"
     },
     "custom/obsidian": {
-        "format": "󰠮  Obsidian",
+        "exec": "printf '󰠮  Obsidian'",
+        "format": "{}",
         "tooltip": true,
         "tooltip-format": "Open Obsidian (if installed)",
         "on-click": "if command -v obsidian >/dev/null 2>&1; then obsidian; else notify-send 'Obsidian is not installed' 'Install it first, then click this button again.'; fi"
     },
     "custom/notion": {
-        "format": "󰈙  Notion",
+        "exec": "printf '󰈙  Notion'",
+        "format": "{}",
         "tooltip": true,
         "tooltip-format": "Open Notion as a web app",
         "on-click": "brave --app=https://www.notion.so/"
     },
     "custom/notion-calendar": {
-        "format": "󰃭  Calendar",
+        "exec": "printf '󰃭  Calendar'",
+        "format": "{}",
         "tooltip": true,
         "tooltip-format": "Open Notion Calendar",
         "on-click": "brave --app=https://calendar.notion.so/"
     },
     "custom/chess": {
-        "format": "♟  Chess.com",
+        "exec": "printf '♟  Chess.com'",
+        "format": "{}",
         "tooltip": true,
         "tooltip-format": "Open Chess.com",
         "on-click": "brave --app=https://www.chess.com/"
     },
     "custom/itch": {
-        "format": "󰊗  itch.io",
+        "exec": "printf '󰊗  itch.io'",
+        "format": "{}",
         "tooltip": true,
         "tooltip-format": "Open itch.io games",
         "on-click": "brave --app=https://itch.io/"
     },
     "custom/steam": {
-        "format": "󰓓  Steam",
+        "exec": "printf '󰓓  Steam'",
+        "format": "{}",
         "tooltip": true,
         "tooltip-format": "Launch Steam (if installed)",
         "on-click": "if command -v steam >/dev/null 2>&1; then steam; else notify-send 'Steam is not installed' 'Install Steam first, then click this button again.'; fi"
