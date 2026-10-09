@@ -643,40 +643,8 @@ window#waybar {
 EOF
 
 # Compact bottom taskbar with an interactive app manager.
-# The manager can add/remove installed desktop apps and custom Brave web apps.
+# The manager creates the Waybar config and matching CSS, and can add/remove apps.
 install -Dm755 "$SCRIPT_DIR/bin/taskbar-manager" "$HOME/.local/bin/taskbar-manager"
-
-write_if_changed "$HOME/.config/waybar/taskbar.css" <<'EOF'
-* {
-    font-family: "JetBrainsMono Nerd Font";
-    font-size: 11px;
-}
-
-window#waybar {
-    background: rgba(20, 20, 20, 0.94);
-    color: #eeeeee;
-}
-
-.modules-center {
-    margin: 0;
-    padding: 0 4px;
-    background: rgba(30, 30, 30, 0.98);
-    border-radius: 7px;
-}
-
-#custom-manage,
-[id^="custom-pin"] {
-    padding: 0 6px;
-    margin: 0 1px;
-    border-radius: 5px;
-}
-
-#custom-manage:hover,
-[id^="custom-pin"]:hover {
-    background: rgba(255, 255, 255, 0.14);
-}
-EOF
-
 "$HOME/.local/bin/taskbar-manager" refresh
 
 write_if_changed "$HOME/.config/foot/foot.ini" <<'EOF'
