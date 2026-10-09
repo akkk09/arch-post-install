@@ -292,8 +292,8 @@ hl.monitor({
 -- Start desktop helpers once per Hyprland session.
 hl.on("hyprland.start", function()
     hl.exec_cmd("waybar")
-    -- One helper sequences taskbar startup, environment import, and hover service.
-    hl.exec_cmd("$HOME/.local/bin/taskbar-start")
+    -- Run the taskbar helper through systemd so startup failures are inspectable.
+    hl.exec_cmd("systemctl --user start taskbar-start.service")
     hl.exec_cmd("swaync")
     hl.exec_cmd("hyprsunset")
     hl.exec_cmd("hypridle")
@@ -646,6 +646,7 @@ EOF
 install -Dm755 "$SCRIPT_DIR/bin/taskbar-manager" "$HOME/.local/bin/taskbar-manager"
 install -Dm755 "$SCRIPT_DIR/bin/taskbar-hover" "$HOME/.local/bin/taskbar-hover"
 install -Dm755 "$SCRIPT_DIR/bin/taskbar-start" "$HOME/.local/bin/taskbar-start"
+install -Dm644 "$SCRIPT_DIR/systemd/taskbar-start.service" "$HOME/.config/systemd/user/taskbar-start.service"
 install -Dm644 "$SCRIPT_DIR/systemd/taskbar-hover.service" "$HOME/.config/systemd/user/taskbar-hover.service"
 "$HOME/.local/bin/taskbar-manager" refresh
 
