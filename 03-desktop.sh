@@ -323,7 +323,7 @@ hl.bind("SUPER + V", hl.dsp.exec_cmd("sh -c 'cliphist list | fuzzel --dmenu --pr
 })
 
 -- Commandlets.
-hl.bind("SUPER + BACKSLASH", hl.dsp.exec_cmd("sh -c 'cmd=$(printf \"%s\\n\" rename-camel arch-post-install-update pdf-search | fuzzel --dmenu --prompt=\"Commandlet ❯ \"); [ -n \"$cmd\" ] && foot -D \"$HOME\" -e bash -lc \"\\\"$HOME/.local/bin/$cmd\\\"; exec bash\"'"), {
+hl.bind("SUPER + BACKSLASH", hl.dsp.exec_cmd("sh -c 'cmd=$(printf \"%s\\n\" rename-camel arch-post-install-update pdf-search nightlight | fuzzel --dmenu --prompt=\"Commandlet ❯ \"); [ -n \"$cmd\" ] && foot -D \"$HOME\" -e bash -lc \"\\\"$HOME/.local/bin/$cmd\\\"; exec bash\"'"), {
     description = "Open commandlet menu",
 })
 
@@ -927,6 +927,28 @@ echo "==> Done"
 git status --short
 EOF
 [[ -x "$HOME/.local/bin/arch-post-install-update" ]] || chmod +x "$HOME/.local/bin/arch-post-install-update"
+
+write_if_changed "$HOME/.local/bin/nightlight" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+choice="$(printf '%s\n' \
+  'Enable nightlight (4200 K)' \
+  'Disable nightlight' \
+  | fuzzel --dmenu --prompt='Nightlight ❯ ')" || exit 0
+
+case "$choice" in
+  'Enable nightlight (4200 K)')
+    hyprctl hyprsunset temperature 4200
+    notify-send -a "Desktop Controls" -u low "Nightlight enabled" "Blue-light filter set to 4200 K" || true
+    ;;
+  'Disable nightlight')
+    hyprctl hyprsunset identity
+    notify-send -a "Desktop Controls" -u low "Nightlight disabled" "Blue-light filter turned off" || true
+    ;;
+esac
+EOF
+[[ -x "$HOME/.local/bin/nightlight" ]] || chmod +x "$HOME/.local/bin/nightlight"
 
 echo "==> System menu"
 write_if_changed "$HOME/.local/bin/system-menu" <<'EOF'
