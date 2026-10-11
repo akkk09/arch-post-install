@@ -323,7 +323,7 @@ hl.bind("SUPER + V", hl.dsp.exec_cmd("sh -c 'cliphist list | fuzzel --dmenu --pr
 })
 
 -- Commandlets.
-hl.bind("SUPER + BACKSLASH", hl.dsp.exec_cmd("sh -c 'cmd=$(printf \"%s\\n\" rename-camel arch-post-install-update pdf-search nightlight | fuzzel --dmenu --prompt=\"Commandlet ❯ \"); [ -n \"$cmd\" ] && foot -D \"$HOME\" -e bash -lc \"\\\"$HOME/.local/bin/$cmd\\\"; exec bash\"'"), {
+hl.bind("SUPER + BACKSLASH", hl.dsp.exec_cmd("sh -c 'cmd=$(printf \"%s\\n\" rename-camel arch-post-install-update pdf-search nightlight virtualization-toggle | fuzzel --dmenu --prompt=\"Commandlet ❯ \"); [ -n \"$cmd\" ] && foot -D \"$HOME\" -e bash -lc \"\\\"$HOME/.local/bin/$cmd\\\"; exec bash\"'"), {
     description = "Open commandlet menu",
 })
 
@@ -501,6 +501,44 @@ hl.bind("SUPER + SHIFT + S", hl.dsp.exec_cmd("sh -c 'grim -g \"$(slurp)\" - | sw
     description = "Screenshot region",
 })
 EOF
+
+# Libvirt commandlet: manage the virtualization host services from Fuzzel.
+write_if_changed "$HOME/.local/bin/virtualization-toggle" <<'VIRT_EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+choice="$(printf '%s\n' \
+  'Start virtualization services' \
+  'Stop virtualization services' \
+  'Show virtualization status' \
+  'Open Virtual Machine Manager' \
+  | fuzzel --dmenu --prompt='Virtualization ❯ ')" || exit 0
+
+case "$choice" in
+  'Start virtualization services')
+    sudo systemctl start libvirtd.service virtlogd.socket virtlockd.socket
+    notify-send -a "Virtualization" "Libvirt started" "Host services are running."
+    ;;
+  'Stop virtualization services')
+    if virsh -c qemu:///system list --name 2>/dev/null | grep -q '[^[:space:]]'; then
+      notify-send -a "Virtualization" -u normal "VMs are still running" "Shut down your VMs before stopping libvirt."
+      exit 1
+    fi
+    sudo systemctl stop libvirtd.service virtlogd.socket virtlockd.socket
+    notify-send -a "Virtualization" "Libvirt stopped" "Host services are stopped."
+    ;;
+  'Show virtualization status')
+    foot -T "Virtualization status" -e bash -lc 'systemctl --no-pager --full status libvirtd.service virtlogd.socket virtlockd.socket; printf "\nVMs:\n"; virsh -c qemu:///system list --all; read -rp "Press Enter to close..."' ;;
+  'Open Virtual Machine Manager')
+    if command -v virt-manager >/dev/null 2>&1; then
+      virt-manager
+    else
+      notify-send -a "Virtualization" "virt-manager is not installed" "Install it with: sudo pacman -S virt-manager"
+    fi
+    ;;
+esac
+VIRT_EOF
+[[ -x "$HOME/.local/bin/virtualization-toggle" ]] || chmod +x "$HOME/.local/bin/virtualization-toggle"
 
 write_if_changed "$HOME/.config/fuzzel/fuzzel.ini" <<'EOF'
 [main]
